@@ -1,0 +1,20 @@
+# vscode
+.vscode/
+
+
+# python
+__pycache__/
+
+*.pyc
+*.pyd
+*.pyz
+
+venv/
+.venv/
+
+
+# Cpp
+*.o
+*.out
+*.bin
+*.exe
