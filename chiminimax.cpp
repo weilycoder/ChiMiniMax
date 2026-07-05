@@ -85,6 +85,20 @@ static PyObject *chiminimax_delete_board(PyObject *self, PyObject *args) {
     return NULL;                                                                                             \
   }
 
+static PyObject *chiminimax_get_piece_at(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  std::int32_t pos_x, pos_y;
+  if (!PyArg_ParseTuple(args, "Kii", &board_id, &pos_x, &pos_y))
+    return NULL;
+
+  ASSERT_POS(pos_x, pos_y);
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  std::uint8_t pos = POS_TO_INDEX(pos_x, pos_y);
+  std::uint8_t piece = it->second.getPieceAt(pos);
+  return PyLong_FromUnsignedLongLong(piece);
+}
+
 static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
   std::int32_t pos_x, pos_y;
@@ -213,6 +227,9 @@ static PyMethodDef chiminimax_methods[] = {
     {"test_board", chiminimax_test_board, METH_VARARGS, "Test if a board exists."},
     {"delete_board", chiminimax_delete_board, METH_VARARGS,
      "Delete a board. Raises ValueError if the board does not exist."},
+    {"get_piece_at", chiminimax_get_piece_at, METH_VARARGS,
+     "Get the piece at a specific position. Raises ValueError if the board does not exist or the position is "
+     "out of bounds."},
     {"generate_moves", chiminimax_generate_moves, METH_VARARGS,
      "Generate moves for a piece. Raises ValueError if the board does not exist."},
     {"generate_all_moves", chiminimax_generate_all_moves, METH_VARARGS,

@@ -28,6 +28,9 @@ def test_board(board_id: int) -> bool:
 def delete_board(board_id: int) -> None:
     """Delete a board. Raises ValueError if the board does not exist."""
 
+def get_piece_at(board_id: int, x: int, y: int) -> int:
+    """Get the piece at a position. Raises ValueError if the board does not exist or the position is out of bounds."""
+
 def generate_moves(board_id: int, x: int, y: int) -> list[tuple[int, int]]:
     """Generate moves for a piece. Raises ValueError if the board does not exist."""
 
