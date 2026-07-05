@@ -15,6 +15,7 @@ venv/
 
 # Cpp
 *.o
+*.so
 *.out
 *.bin
 *.exe
