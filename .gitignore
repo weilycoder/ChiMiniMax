@@ -18,3 +18,8 @@ venv/
 *.out
 *.bin
 *.exe
+*.exp
+*.lib
+*.obj
+
+build/
