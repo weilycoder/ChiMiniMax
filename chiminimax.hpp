@@ -20,6 +20,7 @@
  */
 
 #include <array>
+#include <bit>
 #include <bitset>
 #include <chrono>
 #include <cstdint>
@@ -29,10 +30,15 @@
 #include <stack>
 #include <utility>
 
+static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
+              "Unsupported endianness");
+
 static std::mt19937_64 rng{[]() -> std::uint64_t {
-  uint64_t ctime = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  uint64_t random = std::random_device{}();
-  return ctime ^ random;
+  const char *seed = "CMiniMax";
+  if constexpr (std::endian::native == std::endian::little)
+    return *(reinterpret_cast<const std::uint64_t *>(seed));
+  else if constexpr (std::endian::native == std::endian::big)
+    return std::byteswap(*(reinterpret_cast<const std::uint64_t *>(seed)));
 }()};
 
 static constexpr std::bitset<256> cInBoard = []() {
@@ -249,6 +255,7 @@ private:
 
 public:
   cBoard() : squares(_initSquares()) {
+    eZobrist = rng();
     for (std::size_t i = 0; i < 16; ++i)
       for (std::size_t j = 0; j < 256; ++j)
         zobrist[i][j] = rng();
