@@ -1,3 +1,18 @@
+cEmpty: int
+
+cBlack: int
+cRed: int
+cColorMask: int
+
+cKing: int
+cAdvisor: int
+cElephant: int
+cHorse: int
+cRook: int
+cCannon: int
+cPawn: int
+cPieceMask: int
+
 def random() -> int:
     """Generate a random number."""
 

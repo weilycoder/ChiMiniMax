@@ -226,9 +226,44 @@ static PyMethodDef chiminimax_methods[] = {
      "to undo."},
     {NULL, NULL, 0, NULL}};
 
-static struct PyModuleDef chiminimax_module = {.m_methods = chiminimax_methods};
+static PyModuleDef chiminimax_module = {
+    PyModuleDef_HEAD_INIT,
+    "chiminimax",
+    NULL,               /* m_doc */
+    -1,                 /* m_size */
+    chiminimax_methods, /* m_methods */
+    NULL,               /* m_slots */
+    NULL,               /* m_traverse */
+    NULL,               /* m_clear */
+    NULL,               /* m_free */
+};
 
-PyMODINIT_FUNC PyInit_chiminimax(void) { return PyModuleDef_Init(&chiminimax_module); }
+#define ADD_CONST_INT(module, name)                                                                          \
+  if (PyModule_AddIntConstant(module, #name, name) != 0) {                                                   \
+    Py_DECREF(module);                                                                                       \
+    return NULL;                                                                                             \
+  }
+
+PyMODINIT_FUNC PyInit_chiminimax(void) {
+  PyObject *module = PyModule_Create(&chiminimax_module);
+  if (!module)
+    return NULL;
+
+  ADD_CONST_INT(module, cEmpty);
+  ADD_CONST_INT(module, cBlack);
+  ADD_CONST_INT(module, cRed);
+  ADD_CONST_INT(module, cColorMask);
+  ADD_CONST_INT(module, cKing);
+  ADD_CONST_INT(module, cAdvisor);
+  ADD_CONST_INT(module, cElephant);
+  ADD_CONST_INT(module, cHorse);
+  ADD_CONST_INT(module, cRook);
+  ADD_CONST_INT(module, cCannon);
+  ADD_CONST_INT(module, cPawn);
+  ADD_CONST_INT(module, cPieceMask);
+
+  return module;
+}
 
 int main(int argc, char *argv[]) {
   PyStatus status;
