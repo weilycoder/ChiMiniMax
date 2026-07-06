@@ -151,18 +151,18 @@ private:
 
   std::array<std::uint8_t, 256> squares = initSquares;
 
-  constexpr bool testMove(std::uint8_t piece, std::uint8_t to) {
+  constexpr bool testMove(std::uint8_t piece, std::uint8_t to) const {
     return cInBoard.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
   }
 
-  constexpr bool testKingMove(std::uint8_t piece, std::uint8_t to) {
+  constexpr bool testKingMove(std::uint8_t piece, std::uint8_t to) const {
     return cInPalace.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
   }
 
   std::uint64_t getZobrist(std::uint8_t pos) const { return zobristTable[squares[pos]][pos]; }
   void applyZobrist(std::uint8_t from, std::uint8_t to) { eZobrist ^= getZobrist(from) ^ getZobrist(to); }
 
-  std::generator<std::uint8_t> generateKingMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generateKingMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : cKingDelta) {
       const std::uint8_t to = pos + move;
@@ -171,7 +171,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateAdvisorMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generateAdvisorMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : cAdvisorDelta) {
       const std::uint8_t to = pos + move;
@@ -180,7 +180,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateElephantMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generateElephantMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
     for (std::size_t i = 0; i < 4; ++i) {
       const std::uint8_t to = pos + cElephantDelta[i];
@@ -191,7 +191,7 @@ private:
   }
 
   std::generator<std::uint8_t> generateHorseMoves(const std::uint8_t pos, const std::int8_t moveDelta[4][2],
-                                                  const std::int8_t legDelta[4]) {
+                                                  const std::int8_t legDelta[4]) const {
     const std::uint8_t piece = squares[pos];
     for (std::size_t i = 0; i < 4; ++i) {
       const std::uint8_t to1 = pos + moveDelta[i][0];
@@ -206,11 +206,11 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateHorseMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generateHorseMoves(const std::uint8_t pos) const {
     co_yield std::ranges::elements_of(generateHorseMoves(pos, cHorseDelta, cKingDelta));
   }
 
-  std::generator<std::uint8_t> generateRookMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generateRookMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : {cUp, cDown, cLeft, cRight}) {
       for (uint8_t to = pos + move; cInBoard.test(to); to += move) {
@@ -225,7 +225,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateCannonMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generateCannonMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : {cUp, cDown, cLeft, cRight}) {
       bool jumped = false;
@@ -246,7 +246,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generatePawnMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generatePawnMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
     const std::uint8_t forward = (piece & cColorMask) ? cUp : cDown;
     const std::uint8_t toForward = pos + forward;
@@ -270,7 +270,7 @@ public:
 
   std::uint64_t getZobrist() const { return eZobrist; }
 
-  std::generator<std::uint8_t> generateMoves(const std::uint8_t pos) {
+  std::generator<std::uint8_t> generateMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
 
     switch (piece & cPieceMask) {
@@ -298,7 +298,7 @@ public:
     }
   }
 
-  std::generator<std::pair<std::uint8_t, std::uint8_t>> generateAllMoves(std::uint8_t color) {
+  std::generator<std::pair<std::uint8_t, std::uint8_t>> generateAllMoves(std::uint8_t color) const {
     for (std::size_t y = 3; y < 13; ++y) {
       for (std::size_t x = 3; x < 12; ++x) {
         std::uint8_t pos = static_cast<std::uint8_t>(y * 16 + x);
@@ -334,7 +334,7 @@ public:
     }
   }
 
-  bool testCheckmate(std::uint8_t color) {
+  bool testCheckmate(std::uint8_t color) const {
     std::uint8_t kingPos = 0;
     for (std::size_t y = 3; y < 13; ++y)
       for (std::size_t x = 3; x < 12; ++x)
