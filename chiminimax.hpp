@@ -90,6 +90,46 @@ static constexpr std::int8_t cAdvisorDelta[4] = {-17, -15, 15, 17};
 static constexpr std::int8_t cElephantDelta[4] = {-34, -30, 30, 34};
 static constexpr std::int8_t cHorseKingDelta[4][2] = {{-33, -18}, {-31, -14}, {14, 31}, {18, 33}};
 
+static constexpr auto initSquares = []() {
+  std::array<std::uint8_t, 256> squares{};
+
+  squares[0x33] = cBlack | cRook;
+  squares[0x34] = cBlack | cHorse;
+  squares[0x35] = cBlack | cElephant;
+  squares[0x36] = cBlack | cAdvisor;
+  squares[0x37] = cBlack | cKing;
+  squares[0x38] = cBlack | cAdvisor;
+  squares[0x39] = cBlack | cElephant;
+  squares[0x3A] = cBlack | cHorse;
+  squares[0x3B] = cBlack | cRook;
+  squares[0x54] = cBlack | cCannon;
+  squares[0x5A] = cBlack | cCannon;
+  squares[0x63] = cBlack | cPawn;
+  squares[0x65] = cBlack | cPawn;
+  squares[0x67] = cBlack | cPawn;
+  squares[0x69] = cBlack | cPawn;
+  squares[0x6B] = cBlack | cPawn;
+
+  squares[0xC3] = cRed | cRook;
+  squares[0xC4] = cRed | cHorse;
+  squares[0xC5] = cRed | cElephant;
+  squares[0xC6] = cRed | cAdvisor;
+  squares[0xC7] = cRed | cKing;
+  squares[0xC8] = cRed | cAdvisor;
+  squares[0xC9] = cRed | cElephant;
+  squares[0xCA] = cRed | cHorse;
+  squares[0xCB] = cRed | cRook;
+  squares[0xA4] = cRed | cCannon;
+  squares[0xAA] = cRed | cCannon;
+  squares[0x93] = cRed | cPawn;
+  squares[0x95] = cRed | cPawn;
+  squares[0x97] = cRed | cPawn;
+  squares[0x99] = cRed | cPawn;
+  squares[0x9B] = cRed | cPawn;
+
+  return squares;
+}();
+
 struct Step {
   std::uint8_t from, to, origin;
 };
@@ -100,49 +140,9 @@ private:
   std::uint64_t eZobrist = 0;
   std::stack<Step> steps;
 
-  std::array<std::uint8_t, 256> squares;
+  std::array<std::uint8_t, 256> squares = initSquares;
 
-  std::array<std::array<std::uint64_t, 256>, 16> zobrist;
-
-  static constexpr std::array<std::uint8_t, 256> _initSquares() {
-    std::array<std::uint8_t, 256> squares{};
-
-    squares[0x33] = cBlack | cRook;
-    squares[0x34] = cBlack | cHorse;
-    squares[0x35] = cBlack | cElephant;
-    squares[0x36] = cBlack | cAdvisor;
-    squares[0x37] = cBlack | cKing;
-    squares[0x38] = cBlack | cAdvisor;
-    squares[0x39] = cBlack | cElephant;
-    squares[0x3A] = cBlack | cHorse;
-    squares[0x3B] = cBlack | cRook;
-    squares[0x54] = cBlack | cCannon;
-    squares[0x5A] = cBlack | cCannon;
-    squares[0x63] = cBlack | cPawn;
-    squares[0x65] = cBlack | cPawn;
-    squares[0x67] = cBlack | cPawn;
-    squares[0x69] = cBlack | cPawn;
-    squares[0x6B] = cBlack | cPawn;
-
-    squares[0xC3] = cRed | cRook;
-    squares[0xC4] = cRed | cHorse;
-    squares[0xC5] = cRed | cElephant;
-    squares[0xC6] = cRed | cAdvisor;
-    squares[0xC7] = cRed | cKing;
-    squares[0xC8] = cRed | cAdvisor;
-    squares[0xC9] = cRed | cElephant;
-    squares[0xCA] = cRed | cHorse;
-    squares[0xCB] = cRed | cRook;
-    squares[0xA4] = cRed | cCannon;
-    squares[0xAA] = cRed | cCannon;
-    squares[0x93] = cRed | cPawn;
-    squares[0x95] = cRed | cPawn;
-    squares[0x97] = cRed | cPawn;
-    squares[0x99] = cRed | cPawn;
-    squares[0x9B] = cRed | cPawn;
-
-    return squares;
-  }
+  std::array<std::array<std::uint64_t, 256>, 16> zobrist{};
 
   constexpr bool testMove(std::uint8_t piece, std::uint8_t to) {
     return cInBoard.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
@@ -254,7 +254,7 @@ private:
   }
 
 public:
-  cBoard() : squares(_initSquares()) {
+  cBoard() {
     eZobrist = rng();
     for (std::size_t i = 0; i < 16; ++i)
       for (std::size_t j = 0; j < 256; ++j)
