@@ -130,6 +130,15 @@ static constexpr auto initSquares = []() {
   return squares;
 }();
 
+static const std::uint64_t initZobrist = rng();
+static const auto zobristTable = []() {
+  std::array<std::array<std::uint64_t, 256>, 16> zobrist{};
+  for (std::size_t i = 1; i < 16; ++i)
+    for (std::size_t j = 0; j < 255; ++j)
+      zobrist[i][j] = rng();
+  return zobrist;
+}();
+
 struct Step {
   std::uint8_t from, to, origin;
 };
@@ -137,12 +146,10 @@ struct Step {
 class cBoard {
 private:
   std::int32_t eScore = 0;
-  std::uint64_t eZobrist = 0;
+  std::uint64_t eZobrist = initZobrist;
   std::stack<Step> steps;
 
   std::array<std::uint8_t, 256> squares = initSquares;
-
-  std::array<std::array<std::uint64_t, 256>, 16> zobrist{};
 
   constexpr bool testMove(std::uint8_t piece, std::uint8_t to) {
     return cInBoard.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
@@ -151,6 +158,9 @@ private:
   constexpr bool testKingMove(std::uint8_t piece, std::uint8_t to) {
     return cInPalace.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
   }
+
+  std::uint64_t getZobrist(std::uint8_t pos) const { return zobristTable[squares[pos]][pos]; }
+  void applyZobrist(std::uint8_t from, std::uint8_t to) { eZobrist ^= getZobrist(from) ^ getZobrist(to); }
 
   std::generator<std::uint8_t> generateKingMoves(const std::uint8_t pos) {
     const std::uint8_t piece = squares[pos];
@@ -254,14 +264,11 @@ private:
   }
 
 public:
-  cBoard() {
-    eZobrist = rng();
-    for (std::size_t i = 0; i < 16; ++i)
-      for (std::size_t j = 0; j < 256; ++j)
-        zobrist[i][j] = rng();
-  }
+  cBoard() {}
 
   std::uint8_t getPieceAt(std::uint8_t pos) const { return squares[pos]; }
+
+  std::uint64_t getZobrist() const { return eZobrist; }
 
   std::generator<std::uint8_t> generateMoves(const std::uint8_t pos) {
     const std::uint8_t piece = squares[pos];
@@ -358,8 +365,9 @@ public:
     for (const std::uint8_t move : generateMoves(from))
       if (move == to) {
         steps.emplace(from, to, squares[to]);
-        squares[to] = squares[from];
-        squares[from] = cEmpty;
+        applyZobrist(from, to);
+        squares[to] = squares[from], squares[from] = cEmpty;
+        applyZobrist(from, to);
         if (testCheckmate(squares[to] & cColorMask))
           return undoMove(), false;
         return true;
@@ -372,8 +380,9 @@ public:
       return false;
     Step step = steps.top();
     steps.pop();
-    squares[step.from] = squares[step.to];
-    squares[step.to] = step.origin;
+    applyZobrist(step.from, step.to);
+    squares[step.from] = squares[step.to], squares[step.to] = step.origin;
+    applyZobrist(step.from, step.to);
     return true;
   }
 };

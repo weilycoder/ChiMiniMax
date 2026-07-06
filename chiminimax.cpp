@@ -220,6 +220,17 @@ static PyObject *chiminimax_undo_move(PyObject *self, PyObject *args) {
   Py_RETURN_NONE;
 }
 
+static PyObject *chiminimax_get_zobrist(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  if (!PyArg_ParseTuple(args, "K", &board_id))
+    return NULL;
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  std::uint64_t zobrist = it->second.getZobrist();
+  return PyLong_FromUnsignedLongLong(zobrist);
+}
+
 static PyMethodDef chiminimax_methods[] = {
     {"random", chiminimax_random, METH_VARARGS, "Generate a random number."},
     {"new_board", chiminimax_new_board, METH_VARARGS, "Create a new board and return its ID."},
@@ -241,6 +252,8 @@ static PyMethodDef chiminimax_methods[] = {
     {"undo_move", chiminimax_undo_move, METH_VARARGS,
      "Undo the last move on the board. Raises ValueError if the board does not exist or there are no moves "
      "to undo."},
+    {"get_zobrist", chiminimax_get_zobrist, METH_VARARGS,
+     "Get the Zobrist hash of the board. Raises ValueError if the board does not exist."},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef chiminimax_module = {

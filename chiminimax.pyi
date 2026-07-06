@@ -45,3 +45,6 @@ def make_move(board_id: int, from_x: int, from_y: int, to_x: int, to_y: int) -> 
 
 def undo_move(board_id: int) -> None:
     """Undo the last move on the board. Raises ValueError if the board does not exist or there are no moves to undo."""
+
+def get_zobrist(board_id: int) -> int:
+    """Get the Zobrist hash of the board. Raises ValueError if the board does not exist."""
