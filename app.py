@@ -24,6 +24,8 @@ import tkinter as tk
 from tkinter import messagebox
 from just_playback import Playback
 
+from typing import Optional
+
 BOARD_WIDTH = 540
 BOARD_HEIGHT = 600
 
@@ -103,15 +105,14 @@ class Assets:
         raise ValueError(f"Image {ascii(piece_name)} not found in Assets.")
 
 
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("ChiMiniMax")
-        self.geometry(f"{BOARD_WIDTH}x{BOARD_HEIGHT}")
-        self.resizable(False, False)
+class Board(tk.Frame):
+    def __init__(self, master: Optional[tk.Tk] = None):
+        super().__init__(master)
 
         self.canvas = tk.Canvas(self, width=BOARD_WIDTH, height=BOARD_HEIGHT)
-        self.canvas.place(relx=0, rely=0, relwidth=1.0, relheight=1.0)
+        self.canvas.place(x=0, y=0, width=BOARD_WIDTH, height=BOARD_HEIGHT)
+
+        self.init_board()
 
     def init_board(self):
         self.assets = Assets()
@@ -131,7 +132,7 @@ class App(tk.Tk):
                     image = self.assets.get_piece_image(piece_name)
                     self.board[(x, y)] = self.create_piece(x, y, image)
 
-        self.bind("<Button-1>", lambda event: self.select_grid(event.x // GRID_SIZE, event.y // GRID_SIZE))
+        self.master.bind("<Button-1>", lambda event: self.select_grid(event.x // GRID_SIZE, event.y // GRID_SIZE))
 
     def select_grid(self, x: int, y: int):
         if self.canvas.itemcget(self.selected, "state") == tk.HIDDEN:
@@ -198,11 +199,23 @@ class App(tk.Tk):
         return (new_x, new_y) in chiM.generate_moves(self.chiM, old_x, old_y)
 
 
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("ChiMiniMax")
+        self.geometry(f"{BOARD_WIDTH}x{BOARD_HEIGHT}")
+        self.resizable(False, False)
+
+    def initUI(self):
+        self.board = Board(self)
+        self.board.pack(fill=tk.BOTH, expand=True)
+
+
 if __name__ == "__main__":
     app = App()
 
     try:
-        app.init_board()
+        app.initUI()
     except ValueError as e:
         messagebox.showerror("Error", str(e))
         app.destroy()
