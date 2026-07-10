@@ -1,17 +1,19 @@
-cEmpty: int
+from typing import Literal
 
-cBlack: int
-cRed: int
-cColorMask: int
+cEmpty: Literal[0]
 
-cKing: int
-cAdvisor: int
-cElephant: int
-cHorse: int
-cRook: int
-cCannon: int
-cPawn: int
-cPieceMask: int
+cBlack: Literal[0]
+cRed: Literal[8]
+cColorMask: Literal[8]
+
+cKing: Literal[1]
+cAdvisor: Literal[2]
+cElephant: Literal[3]
+cHorse: Literal[4]
+cRook: Literal[5]
+cCannon: Literal[6]
+cPawn: Literal[7]
+cPieceMask: Literal[7]
 
 def random() -> int:
     """Generate a random number."""
@@ -43,10 +45,13 @@ def load_pst(board_id: int, filename: str) -> None:
 def generate_moves(board_id: int, x: int, y: int) -> list[tuple[int, int]]:
     """Generate moves for a piece. Raises ValueError if the board does not exist."""
 
-def generate_all_moves(board_id: int, color: str) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+def generate_all_moves(
+    board_id: int,
+    color: Literal["R", "B"],
+) -> list[tuple[tuple[int, int], tuple[int, int]]]:
     """Generate all possible moves. Raises ValueError if the board does not exist."""
 
-def test_checkmate(board_id: int, color: str) -> bool:
+def test_checkmate(board_id: int, color: Literal["R", "B"]) -> bool:
     """Test if a color is in checkmate. Raises ValueError if the board does not exist."""
 
 def make_move(board_id: int, from_x: int, from_y: int, to_x: int, to_y: int) -> None:
