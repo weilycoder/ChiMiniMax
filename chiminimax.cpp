@@ -271,6 +271,33 @@ static PyObject *chiminimax_get_zobrist(PyObject *self, PyObject *args) {
   return PyLong_FromUnsignedLongLong(zobrist);
 }
 
+static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  const char *color_str;
+  int depth;
+  if (!PyArg_ParseTuple(args, "Ksi", &board_id, &color_str, &depth))
+    return NULL;
+
+  if (color_str[1] != '\0' || (color_str[0] != 'R' && color_str[0] != 'B')) {
+    PyErr_SetString(PyExc_ValueError, "Color must be 'R' or 'B'.");
+    return NULL;
+  }
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  auto [from, to] = it->second.suggestMove(color_str[0] == 'R' ? cRed : cBlack, depth);
+  if (from == 0 && to == 0) {
+    Py_RETURN_NONE; // No valid move found
+  }
+
+  std::uint8_t from_x = INDEX_TO_X(from);
+  std::uint8_t from_y = INDEX_TO_Y(from);
+  std::uint8_t to_x = INDEX_TO_X(to);
+  std::uint8_t to_y = INDEX_TO_Y(to);
+
+  return Py_BuildValue("(ii)(ii)", from_x, from_y, to_x, to_y);
+}
+
 static PyMethodDef chiminimax_methods[] = {
     {"random", chiminimax_random, METH_VARARGS, "Generate a random number."},
     {"new_board", chiminimax_new_board, METH_VARARGS, "Create a new board and return its ID."},
@@ -301,6 +328,9 @@ static PyMethodDef chiminimax_methods[] = {
      "file cannot be loaded."},
     {"get_zobrist", chiminimax_get_zobrist, METH_VARARGS,
      "Get the Zobrist hash of the board. Raises ValueError if the board does not exist."},
+    {"suggest_move", chiminimax_suggest_move, METH_VARARGS,
+     "Suggest a move for a color at a given depth. Raises ValueError if the board does not exist or the "
+     "color is invalid."},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef chiminimax_module = {

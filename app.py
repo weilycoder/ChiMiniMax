@@ -38,13 +38,22 @@ BLACK = "B"
 RED = "R"
 
 
-def color_id(color: Literal["B", "R"]) -> int:
+def color_id(color: Literal["B", "R"]) -> Literal[0, 8]:
     if color == BLACK:
         return chiM.cBlack
     elif color == RED:
         return chiM.cRed
     else:
         raise ValueError(f"Invalid color: {color}. Must be 'B' or 'R'.")
+
+
+def color_from_id(color_id: Literal[0, 8]) -> Literal["B", "R"]:
+    if color_id == chiM.cBlack:
+        return BLACK
+    elif color_id == chiM.cRed:
+        return RED
+    else:
+        raise ValueError(f"Invalid color ID: {color_id}. Must be 0 (Black) or 8 (Red).")
 
 
 INIT_BOARD: tuple[tuple[str, ...], ...] = (
@@ -122,12 +131,16 @@ class Board(tk.Frame):
         self,
         master: Optional[tk.Misc] = None,
         first_move_color: Literal["B", "R"] = RED,
+        red_depth: Optional[int] = None,
+        black_depth: Optional[int] = None,
     ):
         super().__init__(master)
 
         self.canvas = tk.Canvas(self, width=BOARD_WIDTH, height=BOARD_HEIGHT)
         self.canvas.place(x=0, y=0, width=BOARD_WIDTH, height=BOARD_HEIGHT)
 
+        self.red_depth = red_depth
+        self.black_depth = black_depth
         self.init_board(first_move_color)
 
     def init_board(self, first_move_color: Literal["B", "R"]):
@@ -138,7 +151,7 @@ class Board(tk.Frame):
         self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
 
         self.chiM = chiM.new_board()
-        self.curr_color = color_id(first_move_color)
+        self.curr_color: Literal["B", "R"] = first_move_color
         self.board: dict[tuple[int, int], int] = {}
         self.captured_pieces: list[int] = []
         self.moves: list[tuple[tuple[int, int], tuple[int, int], bool]] = []
@@ -154,17 +167,31 @@ class Board(tk.Frame):
     def get_piece_at(self, x: int, y: int) -> int:
         return chiM.get_piece_at(self.chiM, x, y)
 
+    def get_color_at(self, x: int, y: int) -> Literal["B", "R", ""]:
+        piece = self.get_piece_at(x, y)
+        if piece & chiM.cColorMask == chiM.cRed:
+            return RED
+        elif piece & chiM.cColorMask == chiM.cBlack:
+            return BLACK
+        else:
+            return ""
+
+    def suggest_move(self):
+        depth = self.red_depth if self.curr_color == RED else self.black_depth
+        if depth is not None:
+            (ox, oy), (nx, ny) = chiM.suggest_move(self.chiM, self.curr_color, depth)
+            self.move_piece(ox, oy, nx, ny)
+
     def select_grid(self, x: int, y: int):
         if self.canvas.itemcget(self.selected, "state") == tk.HIDDEN:
             self.canvas.moveto(self.selected, *self.grid_position(x, y))
-            if (x, y) in self.board and (self.get_piece_at(x, y) & chiM.cColorMask) == self.curr_color:
+            if (x, y) in self.board and self.get_color_at(x, y) == self.curr_color:
                 self.canvas.itemconfig(self.selected, state=tk.NORMAL)
         else:
             self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
             old_x, old_y = map(lambda x: int(x // GRID_SIZE), self.canvas.coords(self.selected))
             if self.check_move(old_x, old_y, x, y):
                 self.move_piece(old_x, old_y, x, y)
-                self.curr_color ^= chiM.cColorMask
             elif (x, y) != (old_x, old_y):
                 self.select_grid(x, y)
 
@@ -184,15 +211,15 @@ class Board(tk.Frame):
 
     def move_piece(self, old_x: int, old_y: int, new_x: int, new_y: int):
         chiM.make_move(self.chiM, old_x, old_y, new_x, new_y)
-        assert (old_x, old_y) in self.board
         captured = self.capture_piece(new_x, new_y)
         piece_id = self.board.pop((old_x, old_y))
         self.canvas.moveto(piece_id, *self.grid_position(new_x, new_y))
         self.board[(new_x, new_y)] = piece_id
         self.moves.append(((old_x, old_y), (new_x, new_y), captured))
 
-        color = self.get_piece_at(new_x, new_y) & chiM.cColorMask
-        self.play_sound(self.assets.moveR if color == chiM.cRed else self.assets.moveB)
+        color = self.get_color_at(new_x, new_y)
+        self.play_sound(self.assets.moveR if color == RED else self.assets.moveB)
+        self.curr_color = RED if self.curr_color == BLACK else BLACK
 
     def undo_move(self):
         chiM.undo_move(self.chiM)

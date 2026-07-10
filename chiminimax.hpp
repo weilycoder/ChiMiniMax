@@ -20,6 +20,7 @@
  */
 
 #include "pst.hpp"
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <bitset>
@@ -27,6 +28,7 @@
 #include <cstdint>
 #include <cstring>
 #include <generator>
+#include <limits>
 #include <random>
 #include <stack>
 #include <utility>
@@ -278,7 +280,31 @@ private:
     }
   }
 
+  std::int32_t negamax(int depth, std::int32_t alpha, std::int32_t beta, std::uint8_t color) {
+    if (depth == 0)
+      return (color == cRed) ? eScore : -eScore;
+
+    std::int32_t best = -winScore;
+    for (const auto &pr : generateAllMoves(color)) {
+      if (!makeMove(pr.first, pr.second))
+        continue;
+
+      const std::int32_t val = -negamax(depth - 1, -beta, -alpha, color ^ cColorMask);
+      undoMove();
+
+      if (val > best)
+        best = val;
+      alpha = std::max(alpha, val);
+      if (alpha >= beta)
+        break; // beta cutoff
+    }
+
+    return best;
+  }
+
 public:
+  static constexpr std::int32_t winScore = 1 << 30;
+
   cBoard() {}
 
   std::uint8_t getPieceAt(std::uint8_t pos) const { return squares[pos]; }
@@ -423,5 +449,27 @@ public:
     squares[step.from] = squares[step.to], squares[step.to] = step.origin;
     applyZobrist(step.from, step.to), addScore(step.from, step.to);
     return true;
+  }
+
+  std::pair<std::uint8_t, std::uint8_t> suggestMove(std::uint8_t color, int depth) {
+    std::int32_t bestVal = -winScore;
+    std::int32_t alpha = -winScore, beta = winScore;
+    std::pair<std::uint8_t, std::uint8_t> bestMove{0, 0};
+
+    for (const auto &pr : generateAllMoves(color)) {
+      if (!makeMove(pr.first, pr.second))
+        continue;
+
+      const std::int32_t val = -negamax(depth - 1, -beta, -alpha, color ^ cColorMask);
+      undoMove();
+
+      if (val > bestVal)
+        bestVal = val, bestMove = pr;
+      alpha = std::max(alpha, val);
+      if (alpha >= beta)
+        break;
+    }
+
+    return bestMove;
   }
 };

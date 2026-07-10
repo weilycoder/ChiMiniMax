@@ -62,3 +62,10 @@ def undo_move(board_id: int) -> None:
 
 def get_zobrist(board_id: int) -> int:
     """Get the Zobrist hash of the board. Raises ValueError if the board does not exist."""
+
+def suggest_move(
+    board_id: int,
+    color: Literal["R", "B"],
+    depth: int,
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Suggest a move for a color at a given depth. Raises ValueError if the board does not exist or the color is invalid."""
