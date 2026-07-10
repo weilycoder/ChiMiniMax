@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 cEmpty: Literal[0]
 
@@ -47,11 +47,11 @@ def generate_moves(board_id: int, x: int, y: int) -> list[tuple[int, int]]:
 
 def generate_all_moves(
     board_id: int,
-    color: Literal["R", "B"],
+    color: Literal[0, 8],
 ) -> list[tuple[tuple[int, int], tuple[int, int]]]:
     """Generate all possible moves. Raises ValueError if the board does not exist."""
 
-def test_checkmate(board_id: int, color: Literal["R", "B"]) -> bool:
+def test_checkmate(board_id: int, color: Literal[0, 8]) -> bool:
     """Test if a color is in checkmate. Raises ValueError if the board does not exist."""
 
 def make_move(board_id: int, from_x: int, from_y: int, to_x: int, to_y: int) -> None:
@@ -65,7 +65,7 @@ def get_zobrist(board_id: int) -> int:
 
 def suggest_move(
     board_id: int,
-    color: Literal["R", "B"],
+    color: Literal[0, 8],
     depth: int,
-) -> tuple[tuple[int, int], tuple[int, int]]:
+) -> Optional[tuple[tuple[int, int], tuple[int, int]]]:
     """Suggest a move for a color at a given depth. Raises ValueError if the board does not exist or the color is invalid."""

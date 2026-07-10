@@ -24,7 +24,7 @@ import tkinter as tk
 from tkinter import messagebox
 from just_playback import Playback
 
-from typing import Optional, Literal
+from typing import Optional, Literal, cast
 
 BOARD_WIDTH = 540
 BOARD_HEIGHT = 600
@@ -33,27 +33,6 @@ GRID_SIZE = 60
 PIECE_SIZE = 57
 
 MOVE_SOUND_LENGTH = 0.2
-
-BLACK = "B"
-RED = "R"
-
-
-def color_id(color: Literal["B", "R"]) -> Literal[0, 8]:
-    if color == BLACK:
-        return chiM.cBlack
-    elif color == RED:
-        return chiM.cRed
-    else:
-        raise ValueError(f"Invalid color: {color}. Must be 'B' or 'R'.")
-
-
-def color_from_id(color_id: Literal[0, 8]) -> Literal["B", "R"]:
-    if color_id == chiM.cBlack:
-        return BLACK
-    elif color_id == chiM.cRed:
-        return RED
-    else:
-        raise ValueError(f"Invalid color ID: {color_id}. Must be 0 (Black) or 8 (Red).")
 
 
 INIT_BOARD: tuple[tuple[str, ...], ...] = (
@@ -130,7 +109,7 @@ class Board(tk.Frame):
     def __init__(
         self,
         master: Optional[tk.Misc] = None,
-        first_move_color: Literal["B", "R"] = RED,
+        first_move_color: Literal[0, 8] = chiM.cRed,
         red_depth: Optional[int] = None,
         black_depth: Optional[int] = None,
     ):
@@ -143,7 +122,7 @@ class Board(tk.Frame):
         self.black_depth = black_depth
         self.init_board(first_move_color)
 
-    def init_board(self, first_move_color: Literal["B", "R"]):
+    def init_board(self, first_move_color: Literal[0, 8]):
         self.assets = Assets()
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.assets.board)
 
@@ -151,7 +130,7 @@ class Board(tk.Frame):
         self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
 
         self.chiM = chiM.new_board()
-        self.curr_color: Literal["B", "R"] = first_move_color
+        self.curr_color: Literal[0, 8] = first_move_color
         self.board: dict[tuple[int, int], int] = {}
         self.captured_pieces: list[int] = []
         self.moves: list[tuple[tuple[int, int], tuple[int, int], bool]] = []
@@ -167,20 +146,16 @@ class Board(tk.Frame):
     def get_piece_at(self, x: int, y: int) -> int:
         return chiM.get_piece_at(self.chiM, x, y)
 
-    def get_color_at(self, x: int, y: int) -> Literal["B", "R", ""]:
-        piece = self.get_piece_at(x, y)
-        if piece & chiM.cColorMask == chiM.cRed:
-            return RED
-        elif piece & chiM.cColorMask == chiM.cBlack:
-            return BLACK
-        else:
-            return ""
+    def get_color_at(self, x: int, y: int) -> Literal[0, 8]:
+        return cast(Literal[0, 8], self.get_piece_at(x, y) & chiM.cColorMask)
 
     def suggest_move(self):
-        depth = self.red_depth if self.curr_color == RED else self.black_depth
+        depth = self.red_depth if self.curr_color == chiM.cRed else self.black_depth
         if depth is not None:
-            (ox, oy), (nx, ny) = chiM.suggest_move(self.chiM, self.curr_color, depth)
-            self.move_piece(ox, oy, nx, ny)
+            res = chiM.suggest_move(self.chiM, self.curr_color, depth)
+            if res is not None:
+                (ox, oy), (nx, ny) = res
+                self.move_piece(ox, oy, nx, ny)
 
     def select_grid(self, x: int, y: int):
         if self.canvas.itemcget(self.selected, "state") == tk.HIDDEN:
@@ -218,8 +193,8 @@ class Board(tk.Frame):
         self.moves.append(((old_x, old_y), (new_x, new_y), captured))
 
         color = self.get_color_at(new_x, new_y)
-        self.play_sound(self.assets.moveR if color == RED else self.assets.moveB)
-        self.curr_color = RED if self.curr_color == BLACK else BLACK
+        self.play_sound(self.assets.moveR if color == chiM.cRed else self.assets.moveB)
+        self.curr_color = cast(Literal[0, 8], self.curr_color ^ chiM.cColorMask)
 
     def undo_move(self):
         chiM.undo_move(self.chiM)

@@ -21,6 +21,8 @@
 
 #include "chiminimax.hpp"
 #include <Python.h>
+#include <array>
+#include <string_view>
 #include <unordered_map>
 
 static std::unordered_map<std::uint64_t, cBoard> chiminimax_boards;
@@ -84,6 +86,24 @@ static PyObject *chiminimax_delete_board(PyObject *self, PyObject *args) {
     PyErr_SetString(PyExc_ValueError, "Position out of bounds.");                                            \
     return NULL;                                                                                             \
   }
+
+static bool check_color_id(const int color_id) {
+  static constexpr auto errmsg = []() {
+    std::array<char, 42> buffer{};
+    static constexpr std::string_view msg = "Color must be 0x00 (Red) or 0x00 (Black).";
+    std::copy(msg.begin(), msg.end(), buffer.begin());
+    buffer[16] ^= (cRed >> 4), buffer[17] ^= (cRed & 0x0F);
+    buffer[30] ^= (cBlack >> 4), buffer[31] ^= (cBlack & 0x0F);
+    return buffer;
+  }();
+
+  if (color_id != cRed && color_id != cBlack) {
+    PyErr_SetString(PyExc_ValueError, errmsg.data());
+    return false;
+  }
+
+  return true;
+}
 
 static PyObject *chiminimax_get_piece_at(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
@@ -170,14 +190,11 @@ static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) {
 
 static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
-  const char *color_str;
-  if (!PyArg_ParseTuple(args, "Ks", &board_id, &color_str))
+  int color_id;
+  if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
     return NULL;
-
-  if (color_str[1] != '\0' || (color_str[0] != 'R' && color_str[0] != 'B')) {
-    PyErr_SetString(PyExc_ValueError, "Color must be 'R' or 'B'.");
+  if (!check_color_id(color_id))
     return NULL;
-  }
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
@@ -185,7 +202,7 @@ static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) {
   if (!all_moves_list)
     return NULL;
 
-  for (const auto &[from, to] : it->second.generateAllMovesWithCheck(color_str[0] == 'R' ? cRed : cBlack)) {
+  for (const auto &[from, to] : it->second.generateAllMovesWithCheck(color_id)) {
     std::uint8_t from_x = INDEX_TO_X(from);
     std::uint8_t from_y = INDEX_TO_Y(from);
     std::uint8_t to_x = INDEX_TO_X(to);
@@ -207,18 +224,15 @@ static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) {
 
 static PyObject *chiminimax_test_checkmate(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
-  const char *color_str;
-  if (!PyArg_ParseTuple(args, "Ks", &board_id, &color_str))
+  int color_id;
+  if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
     return NULL;
-
-  if (color_str[1] != '\0' || (color_str[0] != 'R' && color_str[0] != 'B')) {
-    PyErr_SetString(PyExc_ValueError, "Color must be 'R' or 'B'.");
+  if (!check_color_id(color_id))
     return NULL;
-  }
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
-  bool is_checkmate = it->second.testCheckmate(color_str[0] == 'R' ? cRed : cBlack);
+  bool is_checkmate = it->second.testCheckmate(color_id);
   if (is_checkmate) {
     Py_RETURN_TRUE;
   } else {
@@ -273,22 +287,17 @@ static PyObject *chiminimax_get_zobrist(PyObject *self, PyObject *args) {
 
 static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
-  const char *color_str;
-  int depth;
-  if (!PyArg_ParseTuple(args, "Ksi", &board_id, &color_str, &depth))
+  int color_id, depth;
+  if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id, &depth))
     return NULL;
-
-  if (color_str[1] != '\0' || (color_str[0] != 'R' && color_str[0] != 'B')) {
-    PyErr_SetString(PyExc_ValueError, "Color must be 'R' or 'B'.");
+  if (!check_color_id(color_id))
     return NULL;
-  }
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
-  auto [from, to] = it->second.suggestMove(color_str[0] == 'R' ? cRed : cBlack, depth);
-  if (from == 0 && to == 0) {
+  auto [from, to] = it->second.suggestMove(color_id, depth);
+  if (from == 0 && to == 0)
     Py_RETURN_NONE; // No valid move found
-  }
 
   std::uint8_t from_x = INDEX_TO_X(from);
   std::uint8_t from_y = INDEX_TO_Y(from);
