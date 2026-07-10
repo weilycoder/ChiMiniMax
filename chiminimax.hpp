@@ -367,13 +367,21 @@ public:
 
   bool testCheckmate(std::uint8_t color) const {
     std::uint8_t kingPos = 0;
-    for (std::size_t y = 3; y < 13; ++y)
-      for (std::size_t x = 3; x < 12; ++x)
-        if (squares[y * 16 + x] == (color | cKing)) {
-          kingPos = static_cast<std::uint8_t>(y * 16 + x);
-          goto found;
-        }
-    return true;
+    if (color == cBlack) {
+      for (std::size_t y = 3; y < 6; ++y)
+        for (std::size_t x = 6; x < 9; ++x)
+          if (squares[y * 16 + x] == (cBlack | cKing)) {
+            kingPos = static_cast<std::uint8_t>(y * 16 + x);
+            goto found;
+          }
+    } else {
+      for (std::size_t y = 10; y < 13; ++y)
+        for (std::size_t x = 6; x < 9; ++x)
+          if (squares[y * 16 + x] == (cRed | cKing)) {
+            kingPos = static_cast<std::uint8_t>(y * 16 + x);
+            goto found;
+          }
+    }
   found:
     for (const std::uint8_t move : generateRookMoves(kingPos))
       if (squares[move] == ((color ^ cColorMask) | cRook))
