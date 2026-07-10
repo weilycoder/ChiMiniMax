@@ -91,6 +91,15 @@ class TableEditor(ttk.Frame):
                 entry.bind("<FocusOut>", lambda _, r=row, c=col: self.entry_focus_out(r, c))
                 entry.bind("<Return>", lambda _, r=row, c=col: self.entry_focus_get(r + 1, c))
 
+        self.reverse_button = ttk.Button(self, text="Reverse Table", command=self.reverse_table)
+        self.reverse_button.grid(row=ROWS, column=0, columnspan=COLS, pady=5)
+
+    def reverse_table(self):
+        left = self.tid * SIZE
+        right = left + SIZE - 1
+        self.data[left:right] = self.data[left:right][::-1]
+        self.update_table()
+
     def entry_focus_in(self, row: int, col: int):
         self.entries[row][col].icursor(tk.END)
         self.entries[row][col].select_range(0, tk.END)
@@ -122,7 +131,7 @@ class App(tk.Tk):
 
     def initUI(self):
         self.title("PST Editor")
-        self.geometry("350x325")
+        self.geometry("350x370")
         self.resizable(False, False)
 
         self.menubar = tk.Menu(self)
