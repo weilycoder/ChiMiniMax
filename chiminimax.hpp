@@ -19,6 +19,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "pst.hpp"
 #include <array>
 #include <bit>
 #include <bitset>
@@ -149,6 +150,8 @@ private:
   std::uint64_t eZobrist = initZobrist;
   std::stack<Step> steps;
 
+  Pst table;
+
   std::array<std::uint8_t, 256> squares = initSquares;
 
   constexpr bool testMove(std::uint8_t piece, std::uint8_t to) const {
@@ -158,6 +161,18 @@ private:
   constexpr bool testKingMove(std::uint8_t piece, std::uint8_t to) const {
     return cInPalace.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
   }
+
+  std::int32_t getScore(std::uint8_t pos) const {
+    if (squares[pos] == 0)
+      return 0;
+    if ((squares[pos] & cColorMask) == cRed)
+      return table.getScore(squares[pos] & cPieceMask, pos);
+    else
+      return -table.getScore(squares[pos] & cPieceMask, 254 - pos);
+  }
+
+  void subScore(std::uint8_t from, std::uint8_t to) { eScore -= getScore(from) + getScore(to); }
+  void addScore(std::uint8_t from, std::uint8_t to) { eScore += getScore(from) + getScore(to); }
 
   std::uint64_t getZobrist(std::uint8_t pos) const { return zobristTable[squares[pos]][pos]; }
   void applyZobrist(std::uint8_t from, std::uint8_t to) { eZobrist ^= getZobrist(from) ^ getZobrist(to); }
@@ -270,6 +285,22 @@ public:
 
   std::uint64_t getZobrist() const { return eZobrist; }
 
+  void reset_pst() {
+    table.loadDefault(), eScore = 0;
+    for (std::size_t y = 3; y < 13; ++y)
+      for (std::size_t x = 3; x < 12; ++x)
+        eScore += getScore(y * 16 + x);
+  }
+
+  void load_pst(const char *filename) {
+    table.load(filename), eScore = 0;
+    for (std::size_t y = 3; y < 13; ++y)
+      for (std::size_t x = 3; x < 12; ++x)
+        eScore += getScore(y * 16 + x);
+  }
+
+  std::int32_t getScore() const { return eScore; }
+
   std::generator<std::uint8_t> generateMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
 
@@ -365,9 +396,9 @@ public:
     for (const std::uint8_t move : generateMoves(from))
       if (move == to) {
         steps.emplace(from, to, squares[to]);
-        applyZobrist(from, to);
+        applyZobrist(from, to), subScore(from, to);
         squares[to] = squares[from], squares[from] = cEmpty;
-        applyZobrist(from, to);
+        applyZobrist(from, to), addScore(from, to);
         if (testCheckmate(squares[to] & cColorMask))
           return undoMove(), false;
         return true;
@@ -380,9 +411,9 @@ public:
       return false;
     Step step = steps.top();
     steps.pop();
-    applyZobrist(step.from, step.to);
+    applyZobrist(step.from, step.to), subScore(step.from, step.to);
     squares[step.from] = squares[step.to], squares[step.to] = step.origin;
-    applyZobrist(step.from, step.to);
+    applyZobrist(step.from, step.to), addScore(step.from, step.to);
     return true;
   }
 };

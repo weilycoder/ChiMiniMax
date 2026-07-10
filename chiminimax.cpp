@@ -99,6 +99,46 @@ static PyObject *chiminimax_get_piece_at(PyObject *self, PyObject *args) {
   return PyLong_FromUnsignedLongLong(piece);
 }
 
+static PyObject *chiminimax_get_score(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  if (!PyArg_ParseTuple(args, "K", &board_id))
+    return NULL;
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  std::int32_t score = it->second.getScore();
+  return PyLong_FromLong(score);
+}
+
+static PyObject *chiminimax_reset_pst(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  if (!PyArg_ParseTuple(args, "K", &board_id))
+    return NULL;
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  it->second.reset_pst();
+  Py_RETURN_NONE;
+}
+
+static PyObject *chiminimax_load_pst(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  const char *filename;
+  if (!PyArg_ParseTuple(args, "Ks", &board_id, &filename))
+    return NULL;
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  try {
+    it->second.load_pst(filename);
+  } catch (const std::exception &e) {
+    PyErr_SetString(PyExc_OSError, e.what());
+    return NULL;
+  }
+
+  Py_RETURN_NONE;
+}
+
 static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
   std::int32_t pos_x, pos_y;
@@ -252,6 +292,13 @@ static PyMethodDef chiminimax_methods[] = {
     {"undo_move", chiminimax_undo_move, METH_VARARGS,
      "Undo the last move on the board. Raises ValueError if the board does not exist or there are no moves "
      "to undo."},
+    {"get_score", chiminimax_get_score, METH_VARARGS,
+     "Get the score of the board. Raises ValueError if the board does not exist."},
+    {"reset_pst", chiminimax_reset_pst, METH_VARARGS,
+     "Reset the piece-square table. Raises ValueError if the board does not exist."},
+    {"load_pst", chiminimax_load_pst, METH_VARARGS,
+     "Load a piece-square table from a file. Raises ValueError if the board does not exist or OSError if the "
+     "file cannot be loaded."},
     {"get_zobrist", chiminimax_get_zobrist, METH_VARARGS,
      "Get the Zobrist hash of the board. Raises ValueError if the board does not exist."},
     {NULL, NULL, 0, NULL}};

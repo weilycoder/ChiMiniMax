@@ -31,6 +31,15 @@ def delete_board(board_id: int) -> None:
 def get_piece_at(board_id: int, x: int, y: int) -> int:
     """Get the piece at a position. Raises ValueError if the board does not exist or the position is out of bounds."""
 
+def get_score(board_id: int) -> int:
+    """Get the score of the board. Raises ValueError if the board does not exist."""
+
+def reset_pst(board_id: int) -> None:
+    """Reset the piece-square table. Raises ValueError if the board does not exist."""
+
+def load_pst(board_id: int, filename: str) -> None:
+    """Load a piece-square table from a file. Raises ValueError if the board does not exist or OSError if the file cannot be loaded."""
+
 def generate_moves(board_id: int, x: int, y: int) -> list[tuple[int, int]]:
     """Generate moves for a piece. Raises ValueError if the board does not exist."""
 
