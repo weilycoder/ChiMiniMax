@@ -306,7 +306,7 @@ static PyObject *chiminimax_get_zobrist(PyObject *self, PyObject *args) {
 static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
   int color_id, depth;
-  if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id, &depth))
+  if (!PyArg_ParseTuple(args, "Kii", &board_id, &color_id, &depth))
     return NULL;
   if (!check_color_id(color_id))
     return NULL;
