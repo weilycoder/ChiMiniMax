@@ -287,7 +287,7 @@ private:
     if (depth == 0)
       return (color == cRed) ? eScore : -eScore;
 
-    std::int32_t best = -winScore;
+    std::int32_t best = static_cast<std::int32_t>(steps.size()) - winScore;
     for (const auto &pr : generateAllMoves(color)) {
       if (!makeMove(pr.first, pr.second))
         continue;
