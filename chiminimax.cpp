@@ -119,6 +119,24 @@ static PyObject *chiminimax_get_piece_at(PyObject *self, PyObject *args) {
   return PyLong_FromUnsignedLongLong(piece);
 }
 
+static PyObject *chiminimax_get_king_pos(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  int color_id;
+  if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
+    return NULL;
+  if (!check_color_id(color_id))
+    return NULL;
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  std::uint8_t king_pos = it->second.getKingPos(color_id);
+
+  if (king_pos == 0)
+    Py_RETURN_NONE; // King is captured, no valid position
+
+  return Py_BuildValue("(ii)", INDEX_TO_X(king_pos), INDEX_TO_Y(king_pos));
+}
+
 static PyObject *chiminimax_get_score(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
   if (!PyArg_ParseTuple(args, "K", &board_id))
@@ -317,6 +335,9 @@ static PyMethodDef chiminimax_methods[] = {
     {"get_piece_at", chiminimax_get_piece_at, METH_VARARGS,
      "Get the piece at a specific position. Raises ValueError if the board does not exist or the position is "
      "out of bounds."},
+    {"get_king_pos", chiminimax_get_king_pos, METH_VARARGS,
+     "Get the position of the king for a specific color. Raises ValueError if the board does not exist or "
+     "the color is invalid."},
     {"generate_moves", chiminimax_generate_moves, METH_VARARGS,
      "Generate moves for a piece. Raises ValueError if the board does not exist."},
     {"generate_all_moves", chiminimax_generate_all_moves, METH_VARARGS,

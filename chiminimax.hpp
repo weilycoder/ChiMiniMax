@@ -391,24 +391,25 @@ public:
     }
   }
 
-  bool testCheckmate(std::uint8_t color) const {
-    std::uint8_t kingPos = 0;
+  std::uint8_t getKingPos(std::uint8_t color) const {
     if (color == cBlack) {
-      for (std::size_t y = 3; y < 6; ++y)
-        for (std::size_t x = 6; x < 9; ++x)
-          if (squares[y * 16 + x] == (cBlack | cKing)) {
-            kingPos = static_cast<std::uint8_t>(y * 16 + x);
-            goto found;
-          }
+      for (std::uint8_t y = 3; y < 6; ++y)
+        for (std::uint8_t x = 6; x < 9; ++x)
+          if (squares[y * 16 + x] == (cBlack | cKing))
+            return y * 16 + x;
     } else {
-      for (std::size_t y = 10; y < 13; ++y)
-        for (std::size_t x = 6; x < 9; ++x)
-          if (squares[y * 16 + x] == (cRed | cKing)) {
-            kingPos = static_cast<std::uint8_t>(y * 16 + x);
-            goto found;
-          }
+      for (std::uint8_t y = 10; y < 13; ++y)
+        for (std::uint8_t x = 6; x < 9; ++x)
+          if (squares[y * 16 + x] == (cRed | cKing))
+            return y * 16 + x;
     }
-  found:
+    return 0; // Should never reach here if the board is valid
+  }
+
+  bool testCheckmate(std::uint8_t color) const {
+    std::uint8_t kingPos = getKingPos(color);
+    if (kingPos == 0)
+      return true; // King is captured, checkmate
     for (const std::uint8_t move : generateRookMoves(kingPos))
       if (squares[move] == ((color ^ cColorMask) | cRook))
         return true;

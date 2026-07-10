@@ -33,6 +33,9 @@ def delete_board(board_id: int) -> None:
 def get_piece_at(board_id: int, x: int, y: int) -> int:
     """Get the piece at a position. Raises ValueError if the board does not exist or the position is out of bounds."""
 
+def get_king_pos(board_id: int, color: Literal[0, 8]) -> Optional[tuple[int, int]]:
+    """Get the position of the king for a color. Raises ValueError if the board does not exist or the color is invalid."""
+
 def get_score(board_id: int) -> int:
     """Get the score of the board. Raises ValueError if the board does not exist."""
 
