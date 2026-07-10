@@ -51,6 +51,27 @@ public:
       return (a > b) ? (a - b) : 0;
     };
 
+    static auto advisor_elephant = [](std::uint8_t r, std::uint8_t c) -> std::uint8_t {
+      if (r % 3 == 0 && c % 3 == 0)
+        return 30 + 2 * (4 - sub_abs(c, 4)) + ((1 - sub_abs(r, 8)) * 3 + 1) / 2; // Elephant
+      else if (r >= 7 && sub_abs(c, 4) <= 1)
+        return 30 + 2 * (4 - sub_abs(c, 4)) + ((9 - r) * 3 + 1) / 2; // Advisor
+      else
+        return 0;
+    };
+
+    static auto horse = [](std::uint8_t r, std::uint8_t c) -> std::uint8_t {
+      return 125 - 4 * (sub_abs(r, 4) + sub_abs(c, 4));
+    };
+
+    static auto rook = [](std::uint8_t r, std::uint8_t c) -> std::uint8_t {
+      return 200 + 2 * (4 - sub_abs(c, 4)) + (3 * (8 - r) + 1) / 2;
+    };
+
+    static auto cannon = [](std::uint8_t r, std::uint8_t c) -> std::uint8_t {
+      return 95 + (3 * (4 - sub_abs(c, 4)) + 1) / 2 + (9 - r);
+    };
+
     static auto pawn = [](std::uint8_t r, std::uint8_t c) -> std::uint8_t {
       if (r == 0)
         return 20 + 3 * (4 - sub_abs(c, 4));
@@ -62,11 +83,11 @@ public:
 
     for (std::uint8_t row = 0; row < 10; ++row) {
       for (std::uint8_t col = 0; col < 9; ++col) {
-        table[SIZE * 0 + rc_to_pos(row, col)] = pawn(row, col); // Pawn
-        table[SIZE * 1 + rc_to_pos(row, col)] = 30;             // Advisor / Elephant
-        table[SIZE * 2 + rc_to_pos(row, col)] = 100;            // Horse
-        table[SIZE * 3 + rc_to_pos(row, col)] = 200;            // Rook
-        table[SIZE * 4 + rc_to_pos(row, col)] = 95;             // Cannon
+        table[SIZE * 0 + rc_to_pos(row, col)] = pawn(row, col);             // Pawn
+        table[SIZE * 1 + rc_to_pos(row, col)] = advisor_elephant(row, col); // Advisor / Elephant
+        table[SIZE * 2 + rc_to_pos(row, col)] = horse(row, col);            // Horse
+        table[SIZE * 3 + rc_to_pos(row, col)] = rook(row, col);             // Rook
+        table[SIZE * 4 + rc_to_pos(row, col)] = cannon(row, col);           // Cannon
       }
     }
   }

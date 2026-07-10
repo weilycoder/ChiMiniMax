@@ -287,15 +287,15 @@ public:
 
   void reset_pst() {
     table.loadDefault(), eScore = 0;
-    for (std::size_t y = 3; y < 13; ++y)
-      for (std::size_t x = 3; x < 12; ++x)
+    for (std::uint8_t y = 3; y < 13; ++y)
+      for (std::uint8_t x = 3; x < 12; ++x)
         eScore += getScore(y * 16 + x);
   }
 
   void load_pst(const char *filename) {
     table.load(filename), eScore = 0;
-    for (std::size_t y = 3; y < 13; ++y)
-      for (std::size_t x = 3; x < 12; ++x)
+    for (std::uint8_t y = 3; y < 13; ++y)
+      for (std::uint8_t x = 3; x < 12; ++x)
         eScore += getScore(y * 16 + x);
   }
 
