@@ -142,6 +142,8 @@ static const auto zobristTable = []() {
   return zobrist;
 }();
 
+using Move = std::pair<std::uint8_t, std::uint8_t>;
+
 struct Step {
   std::uint8_t from, to, origin;
 };
@@ -280,7 +282,8 @@ private:
     }
   }
 
-  std::int32_t negamax(int depth, std::int32_t alpha, std::int32_t beta, std::uint8_t color) {
+  std::int32_t negamax(int depth, std::int32_t alpha, std::int32_t beta, std::uint8_t color,
+                       Move *outBestMove = nullptr) {
     if (depth == 0)
       return (color == cRed) ? eScore : -eScore;
 
@@ -292,8 +295,11 @@ private:
       const std::int32_t val = -negamax(depth - 1, -beta, -alpha, color ^ cColorMask);
       undoMove();
 
-      if (val > best)
+      if (val > best) {
         best = val;
+        if (outBestMove)
+          *outBestMove = pr;
+      }
       alpha = std::max(alpha, val);
       if (alpha >= beta)
         break; // beta cutoff
@@ -355,7 +361,7 @@ public:
     }
   }
 
-  std::generator<std::pair<std::uint8_t, std::uint8_t>> generateAllMoves(std::uint8_t color) const {
+  std::generator<Move> generateAllMoves(std::uint8_t color) const {
     for (std::size_t y = 3; y < 13; ++y) {
       for (std::size_t x = 3; x < 12; ++x) {
         std::uint8_t pos = static_cast<std::uint8_t>(y * 16 + x);
@@ -376,7 +382,7 @@ public:
     }
   }
 
-  std::generator<std::pair<std::uint8_t, std::uint8_t>> generateAllMovesWithCheck(std::uint8_t color) {
+  std::generator<Move> generateAllMovesWithCheck(std::uint8_t color) {
     for (std::size_t y = 3; y < 13; ++y) {
       for (std::size_t x = 3; x < 12; ++x) {
         std::uint8_t pos = static_cast<std::uint8_t>(y * 16 + x);
@@ -452,25 +458,9 @@ public:
     return true;
   }
 
-  std::pair<std::uint8_t, std::uint8_t> suggestMove(std::uint8_t color, int depth) {
-    std::int32_t bestVal = -winScore;
-    std::int32_t alpha = -winScore, beta = winScore;
-    std::pair<std::uint8_t, std::uint8_t> bestMove{0, 0};
-
-    for (const auto &pr : generateAllMoves(color)) {
-      if (!makeMove(pr.first, pr.second))
-        continue;
-
-      const std::int32_t val = -negamax(depth - 1, -beta, -alpha, color ^ cColorMask);
-      undoMove();
-
-      if (val > bestVal)
-        bestVal = val, bestMove = pr;
-      alpha = std::max(alpha, val);
-      if (alpha >= beta)
-        break;
-    }
-
+  Move suggestMove(std::uint8_t color, int depth) {
+    Move bestMove{0, 0};
+    negamax(depth, -winScore, winScore, color, &bestMove);
     return bestMove;
   }
 };
