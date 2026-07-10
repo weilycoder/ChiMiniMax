@@ -142,10 +142,19 @@ static const auto zobristTable = []() {
   return zobrist;
 }();
 
-using Move = std::pair<std::uint8_t, std::uint8_t>;
+struct Move {
+  std::uint8_t from, to;
+
+  Move(std::uint8_t _from, std::uint8_t _to) : from(_from), to(_to) {}
+};
 
 struct Step {
-  std::uint8_t from, to, origin;
+  Move move;
+  std::uint8_t captured;
+
+  Step(Move _move, std::uint8_t _captured) : move(_move), captured(_captured) {}
+  Step(std::uint8_t _from, std::uint8_t _to, std::uint8_t _captured)
+      : move{_from, _to}, captured(_captured) {}
 };
 
 class cBoard {
@@ -289,7 +298,7 @@ private:
 
     std::int32_t best = static_cast<std::int32_t>(steps.size()) - winScore;
     for (const auto &pr : generateAllMoves(color)) {
-      if (!makeMove(pr.first, pr.second))
+      if (!makeMove(pr.from, pr.to))
         continue;
 
       const std::int32_t val = -negamax(depth - 1, -beta, -alpha, color ^ cColorMask);
@@ -367,7 +376,7 @@ public:
         std::uint8_t pos = static_cast<std::uint8_t>(y * 16 + x);
         if (squares[pos] != cEmpty && (squares[pos] & cColorMask) == color)
           for (const std::uint8_t move : generateMoves(pos))
-            co_yield std::make_pair(pos, move);
+            co_yield Move{pos, move};
       }
     }
   }
@@ -390,7 +399,7 @@ public:
           for (const std::uint8_t move : generateMoves(pos)) {
             if (makeMove(pos, move)) {
               undoMove();
-              co_yield std::make_pair(pos, move);
+              co_yield Move{pos, move};
             }
           }
       }
@@ -452,9 +461,9 @@ public:
       return false;
     Step step = steps.top();
     steps.pop();
-    applyZobrist(step.from, step.to), subScore(step.from, step.to);
-    squares[step.from] = squares[step.to], squares[step.to] = step.origin;
-    applyZobrist(step.from, step.to), addScore(step.from, step.to);
+    applyZobrist(step.move.from, step.move.to), subScore(step.move.from, step.move.to);
+    squares[step.move.from] = squares[step.move.to], squares[step.move.to] = step.captured;
+    applyZobrist(step.move.from, step.move.to), addScore(step.move.from, step.move.to);
     return true;
   }
 
