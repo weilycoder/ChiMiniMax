@@ -24,7 +24,7 @@ import tkinter as tk
 from tkinter import messagebox
 from just_playback import Playback
 
-from typing import Optional
+from typing import Optional, Literal
 
 BOARD_WIDTH = 540
 BOARD_HEIGHT = 600
@@ -33,6 +33,18 @@ GRID_SIZE = 60
 PIECE_SIZE = 57
 
 MOVE_SOUND_LENGTH = 0.2
+
+BLACK = "B"
+RED = "R"
+
+
+def color_id(color: Literal["B", "R"]) -> int:
+    if color == BLACK:
+        return chiM.cBlack
+    elif color == RED:
+        return chiM.cRed
+    else:
+        raise ValueError(f"Invalid color: {color}. Must be 'B' or 'R'.")
 
 
 INIT_BOARD: tuple[tuple[str, ...], ...] = (
@@ -106,15 +118,19 @@ class Assets:
 
 
 class Board(tk.Frame):
-    def __init__(self, master: Optional[tk.Tk] = None):
+    def __init__(
+        self,
+        master: Optional[tk.Misc] = None,
+        first_move_color: Literal["B", "R"] = RED,
+    ):
         super().__init__(master)
 
         self.canvas = tk.Canvas(self, width=BOARD_WIDTH, height=BOARD_HEIGHT)
         self.canvas.place(x=0, y=0, width=BOARD_WIDTH, height=BOARD_HEIGHT)
 
-        self.init_board()
+        self.init_board(first_move_color)
 
-    def init_board(self):
+    def init_board(self, first_move_color: Literal["B", "R"]):
         self.assets = Assets()
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.assets.board)
 
@@ -122,6 +138,7 @@ class Board(tk.Frame):
         self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
 
         self.chiM = chiM.new_board()
+        self.curr_color = color_id(first_move_color)
         self.board: dict[tuple[int, int], int] = {}
         self.captured_pieces: list[int] = []
         self.moves: list[tuple[tuple[int, int], tuple[int, int], bool]] = []
@@ -132,18 +149,22 @@ class Board(tk.Frame):
                     image = self.assets.get_piece_image(piece_name)
                     self.board[(x, y)] = self.create_piece(x, y, image)
 
-        self.master.bind("<Button-1>", lambda event: self.select_grid(event.x // GRID_SIZE, event.y // GRID_SIZE))
+        self.master.bind("<Button-1>", lambda e: self.select_grid(e.x // GRID_SIZE, e.y // GRID_SIZE))
+
+    def get_piece_at(self, x: int, y: int) -> int:
+        return chiM.get_piece_at(self.chiM, x, y)
 
     def select_grid(self, x: int, y: int):
         if self.canvas.itemcget(self.selected, "state") == tk.HIDDEN:
             self.canvas.moveto(self.selected, *self.grid_position(x, y))
-            if (x, y) in self.board:
+            if (x, y) in self.board and (self.get_piece_at(x, y) & chiM.cColorMask) == self.curr_color:
                 self.canvas.itemconfig(self.selected, state=tk.NORMAL)
         else:
             self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
             old_x, old_y = map(lambda x: int(x // GRID_SIZE), self.canvas.coords(self.selected))
             if self.check_move(old_x, old_y, x, y):
                 self.move_piece(old_x, old_y, x, y)
+                self.curr_color ^= chiM.cColorMask
             elif (x, y) != (old_x, old_y):
                 self.select_grid(x, y)
 
@@ -170,7 +191,7 @@ class Board(tk.Frame):
         self.board[(new_x, new_y)] = piece_id
         self.moves.append(((old_x, old_y), (new_x, new_y), captured))
 
-        color = chiM.get_piece_at(self.chiM, new_x, new_y) & chiM.cColorMask
+        color = self.get_piece_at(new_x, new_y) & chiM.cColorMask
         self.play_sound(self.assets.moveR if color == chiM.cRed else self.assets.moveB)
 
     def undo_move(self):
