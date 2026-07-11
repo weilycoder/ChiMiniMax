@@ -31,6 +31,7 @@
 #include <limits>
 #include <random>
 #include <stack>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -154,17 +155,81 @@ struct Move {
 struct Step {
   Move move;
   std::uint8_t captured;
+  std::uint8_t moverColor;
+  bool givesCheck;
+  std::uint64_t zobrist;
 
-  Step(Move _move, std::uint8_t _captured) : move(_move), captured(_captured) {}
-  Step(std::uint8_t _from, std::uint8_t _to, std::uint8_t _captured)
-      : move{_from, _to}, captured(_captured) {}
+  Step(const std::uint8_t _from, const std::uint8_t _to, const std::uint8_t _captured,
+       const std::uint8_t _moverColor, const bool _givesCheck = false,
+       const std::uint64_t _zobrist = static_cast<std::uint64_t>(0))
+      : move{_from, _to}, captured(_captured), moverColor(_moverColor), givesCheck(_givesCheck),
+        zobrist(_zobrist) {}
+};
+
+struct MoveHistory {
+  std::vector<Step> steps;
+  std::unordered_map<std::uint64_t, std::vector<std::size_t>> zobristHistory;
+
+  MoveHistory() : steps(), zobristHistory() {
+    zobristHistory.reserve(1024);
+    zobristHistory[initZobrist].emplace_back(0); // Initial position
+  }
+
+  void pushStep(std::uint8_t from, std::uint8_t to, std::uint8_t captured, std::uint8_t moverColor,
+                bool givesCheck, std::uint64_t zobrist) {
+    steps.emplace_back(from, to, captured, moverColor, givesCheck, zobrist);
+    zobristHistory[zobrist].emplace_back(steps.size());
+  }
+
+  bool popStep() {
+    if (steps.empty())
+      return false;
+
+    const auto &lastStep = steps.back();
+    zobristHistory.at(lastStep.zobrist).pop_back();
+    if (zobristHistory.at(lastStep.zobrist).empty())
+      zobristHistory.erase(lastStep.zobrist);
+    steps.pop_back();
+    return true;
+  }
+
+  std::uint8_t repStatus() const {
+    if (moveCount() <= 1)
+      return 0;
+
+    const std::uint8_t color = lastStep().moverColor;
+    const std::uint64_t eZobrist = lastStep().zobrist;
+    const auto it = zobristHistory.find(eZobrist);
+
+    if (it == zobristHistory.end() || it->second.size() < 2)
+      return 0;
+
+    bool selfAllCheck = true, oppAllCheck = true;
+    std::size_t repeatStart = it->second[it->second.size() - 2];
+    for (std::size_t i = repeatStart; i < steps.size(); ++i) {
+      const Step &step = steps[i];
+      if (step.moverColor == color)
+        selfAllCheck = selfAllCheck && step.givesCheck;
+      else
+        oppAllCheck = oppAllCheck && step.givesCheck;
+    }
+
+    return (selfAllCheck ? 2 : 0) | (oppAllCheck ? 4 : 0) | 1;
+  }
+
+  Step &lastStep() { return steps.back(); }
+  const Step &lastStep() const { return steps.back(); }
+
+  bool empty() const { return steps.empty(); }
+
+  std::size_t moveCount() const { return steps.size(); }
 };
 
 class cBoard {
 private:
   std::int32_t eScore = 0;
   std::uint64_t eZobrist = initZobrist;
-  std::stack<Step> steps;
+  MoveHistory moveHistory;
 
   Pst table;
 
@@ -301,7 +366,7 @@ private:
     if (depth == 0)
       return (color == cRed) ? eScore : -eScore;
 
-    std::int32_t best = static_cast<std::int32_t>(steps.size()) - winScore;
+    std::int32_t best = static_cast<std::int32_t>(moveHistory.moveCount()) - winScore;
 
     std::vector<Move> moves;
     for (const auto &pr : generateAllMoves(color))
@@ -462,14 +527,19 @@ public:
     return false;
   }
 
+  std::uint8_t repStatus() const { return moveHistory.repStatus(); }
+
   bool makeMove(std::uint8_t from, std::uint8_t to) {
+    const std::uint8_t moverColor = squares[from] & cColorMask;
+
     for (const std::uint8_t move : generateMoves(from))
       if (move == to) {
-        steps.emplace(from, to, squares[to]);
+        std::uint8_t captured = squares[to];
         applyZobrist(from, to), subScore(from, to);
         squares[to] = squares[from], squares[from] = cEmpty;
         applyZobrist(from, to), addScore(from, to);
-        if (testCheck(squares[to] & cColorMask))
+        moveHistory.pushStep(from, to, captured, moverColor, testCheck(moverColor ^ cColorMask), eZobrist);
+        if (testCheck(moverColor))
           return undoMove(), false;
         return true;
       }
@@ -477,10 +547,10 @@ public:
   }
 
   bool undoMove() {
-    if (steps.empty())
+    if (moveHistory.empty())
       return false;
-    Step step = steps.top();
-    steps.pop();
+    Step step = moveHistory.lastStep();
+    moveHistory.popStep();
     applyZobrist(step.move.from, step.move.to), subScore(step.move.from, step.move.to);
     squares[step.move.from] = squares[step.move.to], squares[step.move.to] = step.captured;
     applyZobrist(step.move.from, step.move.to), addScore(step.move.from, step.move.to);

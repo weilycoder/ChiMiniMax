@@ -57,6 +57,9 @@ def generate_all_moves(
 def test_check(board_id: int, color: Literal[0, 8]) -> bool:
     """Test if a color is in check. Raises ValueError if the board does not exist."""
 
+def rep_status(board_id: int, color: Literal[0, 8]) -> int:
+    """Get repetition status for a color. Returns 0 for no repetition, 1 for repetition without foul, 3 for self foul, 5 for opponent foul, and 7 for both fouls. Raises ValueError if the board does not exist or the color is invalid."""
+
 def make_move(board_id: int, from_x: int, from_y: int, to_x: int, to_y: int) -> None:
     """Make a move on the board. Raises ValueError if the board does not exist or the move is invalid."""
 

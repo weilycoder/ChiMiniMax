@@ -258,6 +258,19 @@ static PyObject *chiminimax_test_check(PyObject *self, PyObject *args) {
   }
 }
 
+static PyObject *chiminimax_rep_status(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  int color_id;
+  if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
+    return NULL;
+  if (!check_color_id(color_id))
+    return NULL;
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  return PyLong_FromUnsignedLongLong(it->second.repStatus());
+}
+
 static PyObject *chiminimax_make_move(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
   std::int32_t from_x, from_y, to_x, to_y;
@@ -344,6 +357,9 @@ static PyMethodDef chiminimax_methods[] = {
      "Generate all possible moves. Raises ValueError if the board does not exist."},
     {"test_check", chiminimax_test_check, METH_VARARGS,
      "Test if a color is in check. Raises ValueError if the board does not exist."},
+    {"rep_status", chiminimax_rep_status, METH_VARARGS,
+     "Get repetition status for a color. Raises ValueError if the board does not exist or the color is "
+     "invalid."},
     {"make_move", chiminimax_make_move, METH_VARARGS,
      "Make a move on the board. Raises ValueError if the board does not exist or the move is invalid."},
     {"undo_move", chiminimax_undo_move, METH_VARARGS,
