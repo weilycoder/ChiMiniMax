@@ -32,6 +32,7 @@
 #include <random>
 #include <stack>
 #include <utility>
+#include <vector>
 
 static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
               "Unsupported endianness");
@@ -146,6 +147,8 @@ struct Move {
   std::uint8_t from, to;
 
   Move(std::uint8_t _from, std::uint8_t _to) : from(_from), to(_to) {}
+
+  std::uint16_t toUInt16() const { return (static_cast<std::uint16_t>(from) << 8) | to; }
 };
 
 struct Step {
@@ -166,6 +169,8 @@ private:
   Pst table;
 
   std::array<std::uint8_t, 256> squares = initSquares;
+
+  std::array<std::int32_t, 1 << 16> history{}; // history heuristic indexed by move.toUInt16()
 
   constexpr bool testMove(std::uint8_t piece, std::uint8_t to) const {
     return cInBoard.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
@@ -297,22 +302,37 @@ private:
       return (color == cRed) ? eScore : -eScore;
 
     std::int32_t best = static_cast<std::int32_t>(steps.size()) - winScore;
-    for (const auto &pr : generateAllMoves(color)) {
+
+    std::vector<Move> moves;
+    for (const auto &pr : generateAllMoves(color))
+      moves.emplace_back(pr);
+
+    if (moves.size() > 1) {
+      std::sort(moves.begin(), moves.end(),
+                [&](const Move &a, const Move &b) { return history[a.toUInt16()] > history[b.toUInt16()]; });
+    }
+
+    Move localBest{0, 0};
+    for (const auto &pr : moves) {
       if (!makeMove(pr.from, pr.to))
         continue;
 
       const std::int32_t val = -negamax(depth - 1, -beta, -alpha, color ^ cColorMask);
       undoMove();
 
-      if (val > best) {
-        best = val;
-        if (outBestMove)
-          *outBestMove = pr;
-      }
+      if (val > best)
+        best = val, localBest = pr;
       alpha = std::max(alpha, val);
-      if (alpha >= beta)
+      if (alpha >= beta) {
+        history[pr.toUInt16()] += depth * depth;
         break; // beta cutoff
+      }
     }
+
+    if (localBest.from || localBest.to)
+      history[localBest.toUInt16()] += depth * depth;
+    if (outBestMove)
+      *outBestMove = localBest;
 
     return best;
   }
@@ -469,7 +489,30 @@ public:
 
   Move suggestMove(std::uint8_t color, int depth) {
     Move bestMove{0, 0};
-    negamax(depth, -winScore, winScore, color, &bestMove);
+    if (depth <= 0)
+      return bestMove;
+
+    constexpr std::int32_t aspirationWindow = 32;
+    std::int32_t alpha = -winScore, beta = winScore;
+    std::int32_t lastScore = 0;
+
+    for (int d = 1; d <= depth; ++d) {
+      if (d > 1)
+        alpha = lastScore - aspirationWindow, beta = lastScore + aspirationWindow;
+
+      Move layerBest{0, 0};
+      std::int32_t score = negamax(d, alpha, beta, color, &layerBest);
+
+      if (score <= alpha) {
+        score = negamax(d, -winScore, beta, color, &layerBest);
+      } else if (score >= beta) {
+        score = negamax(d, alpha, winScore, color, &layerBest);
+      }
+
+      lastScore = score;
+      if (layerBest.from || layerBest.to)
+        bestMove = layerBest;
+    }
     return bestMove;
   }
 };
