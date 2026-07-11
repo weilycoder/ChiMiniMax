@@ -512,6 +512,9 @@ public:
       lastScore = score;
       if (layerBest.from || layerBest.to)
         bestMove = layerBest;
+
+      if (std::abs(score) >= (winScore >> 1))
+        break; // Stop searching if a decisive score is found
     }
     return bestMove;
   }
