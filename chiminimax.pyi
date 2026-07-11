@@ -45,6 +45,9 @@ def reset_pst(board_id: int) -> None:
 def load_pst(board_id: int, filename: str) -> None:
     """Load a piece-square table from a file. Raises ValueError if the board does not exist or OSError if the file cannot be loaded."""
 
+def set_draw_score(board_id: int, score: int) -> None:
+    """Set the draw score for the board. Raises ValueError if the board does not exist or OverflowError if the score is out of bounds."""
+
 def generate_moves(board_id: int, x: int, y: int) -> list[tuple[int, int]]:
     """Generate moves for a piece. Raises ValueError if the board does not exist."""
 

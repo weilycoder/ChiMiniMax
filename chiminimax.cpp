@@ -177,6 +177,18 @@ static PyObject *chiminimax_load_pst(PyObject *self, PyObject *args) {
   Py_RETURN_NONE;
 }
 
+static PyObject *chiminimax_set_draw_score(PyObject *self, PyObject *args) {
+  std::uint64_t board_id;
+  std::int16_t score;
+  if (!PyArg_ParseTuple(args, "Kh", &board_id, &score))
+    return NULL;
+
+  ASSERT_BOARD_EXISTS(board_id, it);
+
+  it->second.setDrawScore(score);
+  Py_RETURN_NONE;
+}
+
 static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
   std::int32_t pos_x, pos_y;
@@ -372,6 +384,9 @@ static PyMethodDef chiminimax_methods[] = {
     {"load_pst", chiminimax_load_pst, METH_VARARGS,
      "Load a piece-square table from a file. Raises ValueError if the board does not exist or OSError if the "
      "file cannot be loaded."},
+    {"set_draw_score", chiminimax_set_draw_score, METH_VARARGS,
+     "Set the draw score for the board. Raises ValueError if the board does not exist or OverflowError if "
+     "the score is out of bounds."},
     {"get_zobrist", chiminimax_get_zobrist, METH_VARARGS,
      "Get the Zobrist hash of the board. Raises ValueError if the board does not exist."},
     {"suggest_move", chiminimax_suggest_move, METH_VARARGS,

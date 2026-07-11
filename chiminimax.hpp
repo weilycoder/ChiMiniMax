@@ -227,7 +227,7 @@ struct MoveHistory {
 
 class cBoard {
 private:
-  std::int32_t eScore = 0;
+  std::int32_t eScore = 0, drawScore = 0;
   std::uint64_t eZobrist = initZobrist;
   MoveHistory moveHistory;
 
@@ -363,6 +363,9 @@ private:
 
   std::int32_t negamax(int depth, std::int32_t alpha, std::int32_t beta, std::uint8_t color,
                        Move *outBestMove = nullptr) {
+    const std::uint8_t repStatus = moveHistory.repStatus();
+    if (repStatus == 1 || repStatus == 7)
+      return drawScore;
     if (depth == 0)
       return (color == cRed) ? eScore : -eScore;
 
@@ -424,6 +427,8 @@ public:
       for (std::uint8_t x = 3; x < 12; ++x)
         eScore += getScore(y * 16 + x);
   }
+
+  void setDrawScore(std::int16_t score) { drawScore = score; }
 
   std::int32_t getScore() const { return eScore; }
 
