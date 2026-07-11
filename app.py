@@ -112,6 +112,7 @@ class Board(tk.Frame):
         first_move_color: Literal[0, 8] = chiM.cRed,
         red_depth: Optional[int] = None,
         black_depth: Optional[int] = None,
+        suggest_delay: int = 500,
     ):
         super().__init__(master)
 
@@ -120,6 +121,7 @@ class Board(tk.Frame):
 
         self.red_depth = red_depth
         self.black_depth = black_depth
+        self.suggest_delay = suggest_delay
         self.init_board(first_move_color)
 
     def init_board(self, first_move_color: Literal[0, 8]):
@@ -198,6 +200,8 @@ class Board(tk.Frame):
         self.curr_color = cast(Literal[0, 8], self.curr_color ^ chiM.cColorMask)
 
         self.check_game_over()
+
+        self.after(self.suggest_delay, self.suggest_move)
 
     def check_game_over(self) -> Optional[Literal["Red", "Black"]]:
         moves = chiM.generate_all_moves(self.chiM, self.curr_color)
