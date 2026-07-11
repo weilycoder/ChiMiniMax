@@ -35,6 +35,8 @@
 #include <utility>
 #include <vector>
 
+#define MAX_REC_DEPTH 16
+
 static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
               "Unsupported endianness");
 
@@ -361,13 +363,58 @@ private:
     }
   }
 
+  std::int32_t quiescence(int depth, int32_t alpha, int32_t beta, uint8_t color) {
+    const std::uint8_t repStatus = moveHistory.repStatus();
+    if (repStatus == 1 || repStatus == 7)
+      return drawScore;
+
+    const std::int32_t inCheck = testCheck(color) ? winLimit : 0;
+
+    if (!inCheck) {
+      int32_t standPat = (color == cRed) ? eScore : -eScore;
+      alpha = std::max(alpha, standPat);
+      if (alpha >= beta)
+        return alpha;
+    } else if (depth > MAX_REC_DEPTH) {
+      return static_cast<std::int32_t>(moveHistory.moveCount()) - winScore;
+    }
+
+    std::vector<std::pair<Move, std::int32_t>> moves;
+    for (const auto &pr : generateAllMoves(color)) {
+      if (!makeMove(pr.from, pr.to))
+        continue;
+      const int32_t givesCheck = (depth <= MAX_REC_DEPTH && testCheck(color ^ cColorMask)) ? winLimit : 0;
+      const std::int32_t captured = moveHistory.lastStep().captured;
+      const std::int32_t rank = table.getScore(captured & cPieceMask, pr.to) + givesCheck + inCheck;
+      if (rank != 0)
+        moves.emplace_back(pr, rank);
+      undoMove();
+    }
+
+    std::sort(moves.begin(), moves.end(), [&](const auto &a, const auto &b) { return a.second > b.second; });
+
+    for (const auto &pr : moves) {
+      if (!makeMove(pr.first.from, pr.first.to))
+        continue;
+
+      const std::int32_t score = -quiescence(depth + 1, -beta, -alpha, color ^ cColorMask);
+      undoMove();
+
+      alpha = std::max(alpha, score);
+      if (alpha >= beta)
+        break; // beta cutoff
+    }
+
+    return alpha;
+  }
+
   std::int32_t negamax(int depth, std::int32_t alpha, std::int32_t beta, std::uint8_t color,
                        Move *outBestMove = nullptr) {
     const std::uint8_t repStatus = moveHistory.repStatus();
     if (repStatus == 1 || repStatus == 7)
       return drawScore;
     if (depth == 0)
-      return (color == cRed) ? eScore : -eScore;
+      return quiescence(0, alpha, beta, color);
 
     std::int32_t best = static_cast<std::int32_t>(moveHistory.moveCount()) - winScore;
 
@@ -399,7 +446,7 @@ private:
 
     if (localBest.from || localBest.to)
       history[localBest.toUInt16()] += depth * depth;
-    if (outBestMove)
+    if (outBestMove && (localBest.from && localBest.to))
       *outBestMove = localBest;
 
     return best;
@@ -407,6 +454,7 @@ private:
 
 public:
   static constexpr std::int32_t winScore = 1 << 30;
+  static constexpr std::int32_t winLimit = winScore >> 1;
 
   cBoard() {}
 
@@ -588,7 +636,7 @@ public:
       if (layerBest.from || layerBest.to)
         bestMove = layerBest;
 
-      if (std::abs(score) >= (winScore >> 1))
+      if (std::abs(score) >= winLimit)
         break; // Stop searching if a decisive score is found
     }
     return bestMove;
