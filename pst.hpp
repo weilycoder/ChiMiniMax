@@ -113,6 +113,8 @@ public:
     file.read(reinterpret_cast<char *>(buffer), static_cast<std::streamsize>(table_size));
     if (!file || file.gcount() != static_cast<std::streamsize>(table_size))
       throw std::runtime_error("Failed to read data from file");
+    if (file.peek() != EOF)
+      throw std::runtime_error("File size is larger than expected");
     for (std::size_t i = 0; i < table_size; ++i)
       table[i] = buffer[i];
   }
