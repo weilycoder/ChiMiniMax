@@ -52,7 +52,7 @@ public:
     };
 
     static auto advisor_elephant = [](std::uint8_t r, std::uint8_t c) -> std::uint8_t {
-      if (r % 3 == 0 && c % 3 == 0)
+      if (r % 2 == 1 && c % 2 == 0)
         return 30 + 2 * (4 - sub_abs(c, 4)) + ((1 - sub_abs(r, 8)) * 3 + 1) / 2; // Elephant
       else if (r >= 7 && sub_abs(c, 4) <= 1)
         return 30 + 2 * (4 - sub_abs(c, 4)) + ((9 - r) * 3 + 1) / 2; // Advisor
