@@ -245,7 +245,7 @@ private:
     return cInPalace.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
   }
 
-  std::int32_t getScore(std::uint8_t pos) const {
+  std::int16_t getScore(std::uint8_t pos) const {
     if (squares[pos] == 0)
       return 0;
     if ((squares[pos] & cColorMask) == cRed)

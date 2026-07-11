@@ -16,7 +16,7 @@ public:
   Pst() { loadDefault(); }
 
   // King = 1, Advisor = 2, Elephant = 3, Horse = 4, Rook = 5, Cannon = 6, Pawn = 7
-  std::int32_t getScore(std::uint8_t piece, std::uint8_t pos) const {
+  std::int16_t getScore(std::uint8_t piece, std::uint8_t pos) const {
     if (static_cast<std::size_t>(pos) >= SIZE)
       return 0;
 
