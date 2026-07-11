@@ -240,7 +240,7 @@ static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) {
   return all_moves_list;
 }
 
-static PyObject *chiminimax_test_checkmate(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_test_check(PyObject *self, PyObject *args) {
   std::uint64_t board_id;
   int color_id;
   if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
@@ -250,8 +250,8 @@ static PyObject *chiminimax_test_checkmate(PyObject *self, PyObject *args) {
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
-  bool is_checkmate = it->second.testCheckmate(color_id);
-  if (is_checkmate) {
+  bool is_check = it->second.testCheck(color_id);
+  if (is_check) {
     Py_RETURN_TRUE;
   } else {
     Py_RETURN_FALSE;
@@ -342,8 +342,8 @@ static PyMethodDef chiminimax_methods[] = {
      "Generate moves for a piece. Raises ValueError if the board does not exist."},
     {"generate_all_moves", chiminimax_generate_all_moves, METH_VARARGS,
      "Generate all possible moves. Raises ValueError if the board does not exist."},
-    {"test_checkmate", chiminimax_test_checkmate, METH_VARARGS,
-     "Test if a color is in checkmate. Raises ValueError if the board does not exist."},
+    {"test_check", chiminimax_test_check, METH_VARARGS,
+     "Test if a color is in check. Raises ValueError if the board does not exist."},
     {"make_move", chiminimax_make_move, METH_VARARGS,
      "Make a move on the board. Raises ValueError if the board does not exist or the move is invalid."},
     {"undo_move", chiminimax_undo_move, METH_VARARGS,

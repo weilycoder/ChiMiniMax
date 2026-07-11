@@ -441,7 +441,7 @@ public:
     return 0; // Should never reach here if the board is valid
   }
 
-  bool testCheckmate(std::uint8_t color) const {
+  bool testCheck(std::uint8_t color) const {
     std::uint8_t kingPos = getKingPos(color);
     if (kingPos == 0)
       return true; // King is captured, checkmate
@@ -469,7 +469,7 @@ public:
         applyZobrist(from, to), subScore(from, to);
         squares[to] = squares[from], squares[from] = cEmpty;
         applyZobrist(from, to), addScore(from, to);
-        if (testCheckmate(squares[to] & cColorMask))
+        if (testCheck(squares[to] & cColorMask))
           return undoMove(), false;
         return true;
       }

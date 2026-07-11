@@ -54,8 +54,8 @@ def generate_all_moves(
 ) -> list[tuple[tuple[int, int], tuple[int, int]]]:
     """Generate all possible moves. Raises ValueError if the board does not exist."""
 
-def test_checkmate(board_id: int, color: Literal[0, 8]) -> bool:
-    """Test if a color is in checkmate. Raises ValueError if the board does not exist."""
+def test_check(board_id: int, color: Literal[0, 8]) -> bool:
+    """Test if a color is in check. Raises ValueError if the board does not exist."""
 
 def make_move(board_id: int, from_x: int, from_y: int, to_x: int, to_y: int) -> None:
     """Make a move on the board. Raises ValueError if the board does not exist or the move is invalid."""
