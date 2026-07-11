@@ -166,11 +166,11 @@ class Board(tk.Frame):
             if not self.game_over and (x, y) in self.board and self.get_color_at(x, y) == self.curr_color:
                 self.canvas.itemconfig(self.selected, state=tk.NORMAL)
         else:
-            self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
             old_x, old_y = map(lambda x: int(x // GRID_SIZE), self.canvas.coords(self.selected))
             if self.check_move(old_x, old_y, x, y):
                 self.move_piece(old_x, old_y, x, y)
             elif (x, y) != (old_x, old_y):
+                self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
                 self.select_grid(x, y)
 
     def create_piece(self, x: int, y: int, image: tk.PhotoImage) -> int:
@@ -188,6 +188,10 @@ class Board(tk.Frame):
         return False
 
     def move_piece(self, old_x: int, old_y: int, new_x: int, new_y: int):
+        if self.game_over:
+            return
+
+        self.canvas.itemconfig(self.selected, state=tk.HIDDEN)
         chiM.make_move(self.chiM, old_x, old_y, new_x, new_y)
         captured = self.capture_piece(new_x, new_y)
         piece_id = self.board.pop((old_x, old_y))
