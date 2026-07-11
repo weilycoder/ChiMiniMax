@@ -539,7 +539,7 @@ public:
         squares[to] = squares[from], squares[from] = cEmpty;
         applyZobrist(from, to), addScore(from, to);
         moveHistory.pushStep(from, to, captured, moverColor, testCheck(moverColor ^ cColorMask), eZobrist);
-        if (testCheck(moverColor))
+        if (testCheck(moverColor) || repStatus() == 3)
           return undoMove(), false;
         return true;
       }
