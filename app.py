@@ -159,6 +159,12 @@ class Board(tk.Frame):
             if res is not None:
                 (ox, oy), (nx, ny) = res
                 self.move_piece(ox, oy, nx, ny)
+            else:
+                messagebox.showinfo(
+                    "Game Over",
+                    f"{'Red' if self.curr_color == chiM.cRed else 'Black'} gives up.",
+                )
+                self.set_lose(self.curr_color)
 
     def select_grid(self, x: int, y: int):
         if self.canvas.itemcget(self.selected, "state") == tk.HIDDEN:
@@ -207,18 +213,23 @@ class Board(tk.Frame):
 
         self.after(self.suggest_delay, self.suggest_move)
 
+    def set_lose(self, color: Literal[0, 8]):
+        self.game_over = True
+        winner = "Red" if color == chiM.cBlack else "Black"
+        captured = chiM.get_king_pos(self.chiM, color)
+        if captured is not None:
+            x, y = captured
+            self.canvas.itemconfig(
+                self.board[(x, y)],
+                image=self.assets.kingBD if color == chiM.cBlack else self.assets.kingRD,
+            )
+        messagebox.showinfo("Game Over", f"{winner} wins!")
+
     def check_game_over(self) -> Optional[Literal["Red", "Black"]]:
         moves = chiM.generate_all_moves(self.chiM, self.curr_color)
         if len(moves) == 0:
-            self.game_over = True
+            self.set_lose(self.curr_color)
             winner = "Red" if self.curr_color == chiM.cBlack else "Black"
-            captured = chiM.get_king_pos(self.chiM, self.curr_color)
-            if captured is not None:
-                x, y = captured
-                self.canvas.itemconfig(
-                    self.board[(x, y)],
-                    image=self.assets.kingBD if self.curr_color == chiM.cBlack else self.assets.kingRD,
-                )
             return winner
 
     def undo_move(self):
