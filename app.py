@@ -19,6 +19,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import chiminimax as chiM
+import threading as th
 import tkinter as tk
 
 from tkinter import messagebox
@@ -119,6 +120,9 @@ class Board(tk.Frame):
         self.canvas = tk.Canvas(self, width=BOARD_WIDTH, height=BOARD_HEIGHT)
         self.canvas.place(x=0, y=0, width=BOARD_WIDTH, height=BOARD_HEIGHT)
 
+        self.computing = False
+        self._suggest_thread: Optional[th.Thread] = None
+
         self.red_depth = red_depth
         self.black_depth = black_depth
         self.suggest_delay = suggest_delay
@@ -154,19 +158,31 @@ class Board(tk.Frame):
 
     def suggest_move(self):
         depth = self.red_depth if self.curr_color == chiM.cRed else self.black_depth
-        if depth is not None:
+        if depth is None or self.game_over or self.computing:
+            return
+
+        self.computing = True
+
+        def _compute():
             res = chiM.suggest_move(self.chiM, self.curr_color, depth)
-            if res is not None:
-                (ox, oy), (nx, ny) = res
-                self.move_piece(ox, oy, nx, ny)
-            else:
-                messagebox.showinfo(
-                    "Game Over",
-                    f"{'Red' if self.curr_color == chiM.cRed else 'Black'} gives up.",
-                )
-                self.set_lose(self.curr_color)
+            self.after(0, self._on_suggest_result, res)
+
+        self._suggest_thread = th.Thread(target=_compute, daemon=True)
+        self._suggest_thread.start()
+
+    def _on_suggest_result(self, res):
+        self.computing = False
+        self._suggest_thread = None
+
+        if res is not None:
+            (ox, oy), (nx, ny) = res
+            self.move_piece(ox, oy, nx, ny)
+        else:
+            self.give_up(self.curr_color)
 
     def select_grid(self, x: int, y: int):
+        if self.computing:
+            return
         if self.canvas.itemcget(self.selected, "state") == tk.HIDDEN:
             self.canvas.moveto(self.selected, *self.grid_position(x, y))
             if not self.game_over and (x, y) in self.board and self.get_color_at(x, y) == self.curr_color:
@@ -212,6 +228,12 @@ class Board(tk.Frame):
         self.check_game_over()
 
         self.after(self.suggest_delay, self.suggest_move)
+
+    def give_up(self, color: Literal[0, 8]):
+        if self.game_over:
+            return
+        messagebox.showinfo("Game Over", f"{'Red' if color == chiM.cRed else 'Black'} gives up.")
+        self.set_lose(color)
 
     def set_lose(self, color: Literal[0, 8]):
         self.game_over = True

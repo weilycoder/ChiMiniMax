@@ -338,14 +338,20 @@ static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) {
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
-  auto [from, to] = it->second.suggestMove(color_id, depth);
-  if (from == 0 && to == 0)
+  Move move;
+  {
+    Py_BEGIN_ALLOW_THREADS
+    move = it->second.suggestMove(color_id, depth);
+    Py_END_ALLOW_THREADS
+  }
+
+  if (move.from == 0 && move.to == 0)
     Py_RETURN_NONE; // No valid move found
 
-  std::uint8_t from_x = INDEX_TO_X(from);
-  std::uint8_t from_y = INDEX_TO_Y(from);
-  std::uint8_t to_x = INDEX_TO_X(to);
-  std::uint8_t to_y = INDEX_TO_Y(to);
+  std::uint8_t from_x = INDEX_TO_X(move.from);
+  std::uint8_t from_y = INDEX_TO_Y(move.from);
+  std::uint8_t to_x = INDEX_TO_X(move.to);
+  std::uint8_t to_y = INDEX_TO_Y(move.to);
 
   return Py_BuildValue("(ii)(ii)", from_x, from_y, to_x, to_y);
 }

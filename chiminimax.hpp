@@ -149,6 +149,7 @@ static const auto zobristTable = []() {
 struct Move {
   std::uint8_t from, to;
 
+  Move() : from(0), to(0) {}
   Move(std::uint8_t _from, std::uint8_t _to) : from(_from), to(_to) {}
 
   std::uint16_t toUInt16() const { return (static_cast<std::uint16_t>(from) << 8) | to; }
