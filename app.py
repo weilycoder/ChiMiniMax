@@ -22,7 +22,7 @@ import chiminimax as chiM
 import threading as th
 import tkinter as tk
 
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from just_playback import Playback
 
 from typing import Optional, Literal, cast
@@ -111,8 +111,8 @@ class Board(tk.Frame):
         self,
         master: Optional[tk.Misc] = None,
         first_move_color: Literal[0, 8] = chiM.cRed,
-        red_depth: Optional[int] = None,
-        black_depth: Optional[int] = None,
+        red_depth: int = 0,
+        black_depth: int = 0,
         suggest_delay: int = 500,
     ):
         super().__init__(master)
@@ -126,9 +126,10 @@ class Board(tk.Frame):
         self.red_depth = red_depth
         self.black_depth = black_depth
         self.suggest_delay = suggest_delay
-        self.init_board(first_move_color)
+        self.first_move_color: Literal[0, 8] = first_move_color
+        self.init_board()
 
-    def init_board(self, first_move_color: Literal[0, 8]):
+    def init_board(self):
         self.assets = Assets()
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.assets.board)
 
@@ -137,10 +138,10 @@ class Board(tk.Frame):
 
         self.chiM = chiM.new_board()
         self.game_over = False
-        self.curr_color: Literal[0, 8] = first_move_color
+        self.curr_color: Literal[0, 8] = self.first_move_color
         self.board: dict[tuple[int, int], int] = {}
         self.captured_pieces: list[int] = []
-        self.moves: list[tuple[tuple[int, int], tuple[int, int], bool]] = []
+        self.moves: list[tuple[tuple[int, int], tuple[int, int], bool, Literal[0, 8]]] = []
 
         for y, row in enumerate(INIT_BOARD):
             for x, piece_name in enumerate(row):
@@ -150,6 +151,8 @@ class Board(tk.Frame):
 
         self.master.bind("<Button-1>", lambda e: self.select_grid(e.x // GRID_SIZE, e.y // GRID_SIZE))
 
+        self.after_suggest()
+
     def get_piece_at(self, x: int, y: int) -> int:
         return chiM.get_piece_at(self.chiM, x, y)
 
@@ -158,7 +161,7 @@ class Board(tk.Frame):
 
     def suggest_move(self):
         depth = self.red_depth if self.curr_color == chiM.cRed else self.black_depth
-        if depth is None or self.game_over or self.computing:
+        if depth == 0 or self.game_over or self.computing:
             return
 
         self.computing = True
@@ -219,7 +222,7 @@ class Board(tk.Frame):
         piece_id = self.board.pop((old_x, old_y))
         self.canvas.moveto(piece_id, *self.grid_position(new_x, new_y))
         self.board[(new_x, new_y)] = piece_id
-        self.moves.append(((old_x, old_y), (new_x, new_y), captured))
+        self.moves.append(((old_x, old_y), (new_x, new_y), captured, self.curr_color))
 
         color = self.get_color_at(new_x, new_y)
         self.play_sound(self.assets.moveR if color == chiM.cRed else self.assets.moveB)
@@ -227,7 +230,7 @@ class Board(tk.Frame):
 
         self.check_game_over()
 
-        self.after(self.suggest_delay, self.suggest_move)
+        self.after_suggest()
 
     def give_up(self, color: Literal[0, 8]):
         if self.game_over:
@@ -256,12 +259,13 @@ class Board(tk.Frame):
 
     def undo_move(self):
         chiM.undo_move(self.chiM)
-        old_pos, new_pos, captured = self.moves.pop()
+        old_pos, new_pos, captured, color = self.moves.pop()
         assert old_pos not in self.board
         piece_id = self.board.pop(new_pos)
 
         self.canvas.moveto(piece_id, *self.grid_position(*old_pos))
         self.board[old_pos] = piece_id
+        self.curr_color = color
 
         if captured:
             captured_piece_id = self.captured_pieces.pop()
@@ -279,6 +283,20 @@ class Board(tk.Frame):
     def check_move(self, old_x: int, old_y: int, new_x: int, new_y: int) -> bool:
         return (new_x, new_y) in chiM.generate_moves(self.chiM, old_x, old_y)
 
+    def after_suggest(self):
+        self.after(self.suggest_delay, self.suggest_move)
+
+    @property
+    def human_color(self) -> tuple[Literal[0, 8], ...]:
+        if self.red_depth <= 0 and self.black_depth <= 0:
+            return (chiM.cRed, chiM.cBlack)
+        elif self.red_depth <= 0:
+            return (chiM.cRed,)
+        elif self.black_depth <= 0:
+            return (chiM.cBlack,)
+        else:
+            return ()
+
 
 class App(tk.Tk):
     def __init__(self):
@@ -290,6 +308,40 @@ class App(tk.Tk):
     def initUI(self):
         self.board = Board(self)
         self.board.pack(fill=tk.BOTH, expand=True)
+
+        self.menubar = tk.Menu(self)
+        self.config(menu=self.menubar)
+
+        self.edit_menu = tk.Menu(self.menubar, tearoff=0)
+        self.edit_menu.add_command(label="New Game", command=lambda: self.board.init_board())
+        self.edit_menu.add_separator()
+        self.edit_menu.add_command(label="Undo Move", command=self.undo_move)
+        self.edit_menu.add_command(label="Give Up", command=lambda: self.board.give_up(self.board.curr_color))
+        self.edit_menu.add_separator()
+        self.edit_menu.add_command(label="Set Red Depth", command=lambda: self.set_depth("Red"))
+        self.edit_menu.add_command(label="Set Black Depth", command=lambda: self.set_depth("Black"))
+        self.menubar.add_cascade(label="Edit", menu=self.edit_menu)
+
+    def undo_move(self):
+        if self.board.moves:
+            self.board.undo_move()
+        while self.board.moves and self.board.curr_color not in self.board.human_color:
+            self.board.undo_move()
+        self.board.after_suggest()
+
+    def set_depth(self, color: Literal["Red", "Black"]):
+        depth = simpledialog.askinteger(
+            None,
+            f"Enter depth for {color} (0 for none):",
+            minvalue=0,
+            parent=self,
+        )
+        if depth is not None:
+            if color == "Red":
+                self.board.red_depth = depth
+            else:
+                self.board.black_depth = depth
+            self.board.after_suggest()
 
 
 if __name__ == "__main__":
