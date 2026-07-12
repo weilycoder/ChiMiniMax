@@ -6,5 +6,5 @@
 - The Python board uses 9x10 coordinates; the C++ engine uses the internal 16x16 mailbox-style board. Preserve those conversions when touching move generation or bridging code.
 - If you change any public C++ API or Python-visible behavior, update [chiminimax.pyi](chiminimax.pyi) and the Python call sites together.
 - Avoid editing generated artifacts in `build/` or compiled outputs such as `chiminimax.cp312-win_amd64.pyd` and `test.exe`.
-- When compiling the C++ source into a Python extension, use `setup.py build_ext --inplace --force` and omit the Python interpreter prefix.
+- When compiling the C++ source into a Python extension, use `setup.py build_ext --inplace --force`; do not hardcode a Python interpreter path, and let the active environment resolve it if needed.
 - Preferred validation: use the default C/C++ build task for native changes, and run the Python app only when the touched area needs UI/runtime confirmation.
