@@ -50,6 +50,27 @@ INIT_BOARD: tuple[tuple[str, ...], ...] = (
 )
 
 
+ABOUT_TEXT = """ChiMiniMax - A Chinese Chess (Xiangqi) Game Engine with GUI
+
+Source code: https://github.com/weilycoder/ChiMiniMax
+
+Copyright (C) 2026 weilycoder
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+
 class Assets:
     def __init__(self):
         self.board = self.load_image("board", BOARD_WIDTH, BOARD_HEIGHT)
@@ -321,6 +342,10 @@ class App(tk.Tk):
         self.edit_menu.add_command(label="Set Red Depth", command=lambda: self.set_depth("Red"))
         self.edit_menu.add_command(label="Set Black Depth", command=lambda: self.set_depth("Black"))
         self.menubar.add_cascade(label="Edit", menu=self.edit_menu)
+
+        self.about_menu = tk.Menu(self.menubar, tearoff=0)
+        self.about_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", ABOUT_TEXT))
+        self.menubar.add_cascade(label="Help", menu=self.about_menu)
 
     def undo_move(self):
         if self.board.moves:
