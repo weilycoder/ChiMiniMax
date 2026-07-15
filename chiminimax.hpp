@@ -67,6 +67,10 @@ static constexpr std::bitset<256> cInPalace = []() {
   return bits;
 }();
 
+static constexpr std::uint8_t flip_x(const std::uint8_t pos) { return 0xFE - (pos ^ 0xF0); }
+static constexpr std::uint8_t flip_y(const std::uint8_t pos) { return pos ^ 0xF0; }
+static constexpr std::uint8_t flip_a(const std::uint8_t pos) { return 0xFE - pos; }
+
 static constexpr std::int8_t cUp = -16;
 static constexpr std::int8_t cDown = 16;
 static constexpr std::int8_t cLeft = -1;
@@ -231,10 +235,10 @@ struct MoveHistory {
 class cBoard {
 private:
   std::int32_t eScore = 0, drawScore = 0;
-  std::uint64_t eZobrist = initZobrist;
-  MoveHistory moveHistory;
+  std::array<std::uint64_t, 4> eZobrist{initZobrist, initZobrist, initZobrist, initZobrist};
 
   Pst table;
+  MoveHistory moveHistory;
 
   std::array<std::uint8_t, 256> squares = initSquares;
 
@@ -260,8 +264,27 @@ private:
   void subScore(std::uint8_t from, std::uint8_t to) { eScore -= getScore(from) + getScore(to); }
   void addScore(std::uint8_t from, std::uint8_t to) { eScore += getScore(from) + getScore(to); }
 
-  std::uint64_t getZobrist(std::uint8_t pos) const { return zobristTable[squares[pos]][pos]; }
-  void applyZobrist(std::uint8_t from, std::uint8_t to) { eZobrist ^= getZobrist(from) ^ getZobrist(to); }
+  std::uint64_t getZobrist(std::uint8_t pos, std::uint8_t type) const {
+    switch (type) {
+    case 0:
+      return zobristTable[squares[pos]][pos];
+    case 1:
+      return zobristTable[squares[pos]][flip_x(pos)];
+    case 2:
+      return zobristTable[squares[pos]][flip_y(pos)];
+    case 3:
+      return zobristTable[squares[pos]][flip_a(pos)];
+    default:
+      return 0;
+    }
+  }
+
+  void applyZobrist(std::uint8_t from, std::uint8_t to) {
+    eZobrist[0] ^= getZobrist(from, 0) ^ getZobrist(to, 0);
+    eZobrist[1] ^= getZobrist(from, 1) ^ getZobrist(to, 1);
+    eZobrist[2] ^= getZobrist(from, 2) ^ getZobrist(to, 2);
+    eZobrist[3] ^= getZobrist(from, 3) ^ getZobrist(to, 3);
+  }
 
   std::generator<std::uint8_t> generateKingMoves(const std::uint8_t pos) const {
     const std::uint8_t piece = squares[pos];
@@ -461,7 +484,7 @@ public:
 
   std::uint8_t getPieceAt(std::uint8_t pos) const { return squares[pos]; }
 
-  std::uint64_t getZobrist() const { return eZobrist; }
+  std::uint64_t getZobrist() const { return eZobrist[0]; }
 
   void reset_pst() {
     table.loadDefault(), eScore = 0;
@@ -592,7 +615,7 @@ public:
         applyZobrist(from, to), subScore(from, to);
         squares[to] = squares[from], squares[from] = cEmpty;
         applyZobrist(from, to), addScore(from, to);
-        moveHistory.pushStep(from, to, captured, moverColor, testCheck(moverColor ^ cColorMask), eZobrist);
+        moveHistory.pushStep(from, to, captured, moverColor, testCheck(moverColor ^ cColorMask), eZobrist[0]);
         if (testCheck(moverColor) || repStatus() == 3)
           return undoMove(), false;
         return true;
