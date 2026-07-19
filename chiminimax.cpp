@@ -169,8 +169,11 @@ static PyObject *chiminimax_load_pst(PyObject *self, PyObject *args) {
 
   try {
     it->second.load_pst(filename);
-  } catch (const std::exception &e) {
+  } catch (const pst_load_error &e) {
     PyErr_SetString(PyExc_OSError, e.what());
+    return NULL;
+  } catch (...) {
+    PyErr_SetString(PyExc_SystemError, "An unexpected error occurred while loading the PST.");
     return NULL;
   }
 
@@ -340,8 +343,7 @@ static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) {
 
   Move move;
   {
-    Py_BEGIN_ALLOW_THREADS
-    move = it->second.suggestMove(color_id, depth);
+    Py_BEGIN_ALLOW_THREADS move = it->second.suggestMove(color_id, depth);
     Py_END_ALLOW_THREADS
   }
 

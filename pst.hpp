@@ -4,6 +4,11 @@
 #include <stdexcept>
 #include <string>
 
+class pst_load_error : public std::runtime_error {
+public:
+  explicit pst_load_error(const std::string &message) : std::runtime_error(message) {}
+};
+
 class Pst {
   static_assert(sizeof(std::uint8_t) == 1, "std::uint8_t must be 1 byte");
 
@@ -94,27 +99,27 @@ public:
 
   void save(const char *filename) const {
     if (!filename)
-      throw std::runtime_error("Filename is null");
+      throw pst_load_error("Filename is null");
     std::ofstream file(filename, std::ios::binary);
     if (!file)
-      throw std::runtime_error("Failed to open file for writing");
+      throw pst_load_error("Failed to open file for writing");
     file.write(reinterpret_cast<const char *>(table.data()), static_cast<std::streamsize>(table_size));
     if (!file)
-      throw std::runtime_error("Failed to write data to file");
+      throw pst_load_error("Failed to write data to file");
   }
 
   void load(const char *filename) {
     if (!filename)
-      throw std::runtime_error("Filename is null");
+      throw pst_load_error("Filename is null");
     std::ifstream file(filename, std::ios::binary);
     if (!file)
-      throw std::runtime_error("Failed to open file for reading");
+      throw pst_load_error("Failed to open file for reading");
     static std::uint8_t buffer[table_size];
     file.read(reinterpret_cast<char *>(buffer), static_cast<std::streamsize>(table_size));
     if (!file || file.gcount() != static_cast<std::streamsize>(table_size))
-      throw std::runtime_error("Failed to read data from file");
+      throw pst_load_error("Failed to read data from file");
     if (file.peek() != EOF)
-      throw std::runtime_error("File size is larger than expected");
+      throw pst_load_error("File size is larger than expected");
     for (std::size_t i = 0; i < table_size; ++i)
       table[i] = buffer[i];
   }
