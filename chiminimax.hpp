@@ -233,6 +233,10 @@ struct MoveHistory {
 };
 
 class cBoard {
+public:
+  static constexpr std::int32_t winScore = 1 << 30;
+  static constexpr std::int32_t winLimit = winScore >> 1;
+
 private:
   std::int32_t eScore = 0, drawScore = 0;
   std::array<std::uint64_t, 4> eZobrist{initZobrist, initZobrist, initZobrist, initZobrist};
@@ -477,9 +481,6 @@ private:
   }
 
 public:
-  static constexpr std::int32_t winScore = 1 << 30;
-  static constexpr std::int32_t winLimit = winScore >> 1;
-
   cBoard() {}
 
   std::uint8_t getPieceAt(std::uint8_t pos) const { return squares[pos]; }
