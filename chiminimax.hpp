@@ -36,7 +36,8 @@
 #include <utility>
 #include <vector>
 
-#define Q_MAX_REC_DEPTH 16
+#define TT_SIZE 0x100007
+#define Q_MAX_REC_DEPTH 8
 
 static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
               "Unsupported endianness");
@@ -255,6 +256,67 @@ private:
     mutex_type &_M_device;
   };
 
+  class TranspositionTable {
+  public:
+    static constexpr std::uint8_t exact = 0, alpha = 1, beta = 2;
+
+    std::int32_t adjustRetrieve(std::int32_t score, int depth) const noexcept {
+      return (score > winLimit) ? (score - depth) : ((score < -winLimit) ? (score + depth) : score);
+    }
+
+  private:
+    std::int32_t adjustStore(std::int32_t score, int depth) const noexcept {
+      return (score > winLimit) ? (score + depth) : ((score < -winLimit) ? (score - depth) : score);
+    }
+
+    struct Entry {
+      std::uint8_t flag;
+      int age, depth;
+      std::int32_t score;
+      std::uint64_t zobrist;
+      Move move;
+
+      Entry() noexcept = default;
+      Entry(std::uint8_t _flag, int _age, int _depth, std::int32_t _score, std::uint64_t _zobrist,
+            Move _move) noexcept
+          : flag(_flag), age(_age), depth(_depth), score(_score), zobrist(_zobrist), move(_move) {}
+
+      friend bool operator<(const Entry &a, const Entry &b) noexcept {
+        if (a.age != b.age)
+          return a.age > b.age;   // Prefer newer entries
+        return a.depth > b.depth; // Prefer deeper entries
+      }
+    };
+
+    std::array<std::pair<Entry, Entry>, TT_SIZE> table{};
+
+  public:
+    TranspositionTable() noexcept = default;
+
+    const Entry *getEntry(std::uint64_t zobrist) const noexcept {
+      const std::size_t index = zobrist % TT_SIZE;
+      const auto &[entry1, entry2] = table[index];
+
+      if (entry1.zobrist == zobrist)
+        return &entry1;
+      if (entry2.zobrist == zobrist)
+        return &entry2;
+
+      return nullptr;
+    }
+
+    void storeEntry(std::uint64_t zobrist, std::uint8_t flag, int age, int search_depth, int curr_depth,
+                    std::int32_t score, Move move) noexcept {
+      const std::size_t index = zobrist % TT_SIZE;
+      auto &[entry1, entry2] = table[index];
+      const Entry newEntry(flag, age, search_depth, adjustStore(score, curr_depth), zobrist, move);
+      if (newEntry < entry1)
+        entry2 = entry1, entry1 = newEntry;
+      else if (newEntry < entry2)
+        entry2 = newEntry;
+    }
+  };
+
 public:
   class lock_failed : public std::runtime_error {
   public:
@@ -264,6 +326,7 @@ public:
   std::mutex mtx;
 
 private:
+  int age = 0;
   std::int32_t eScore = 0, drawScore = 0;
   std::array<std::uint64_t, 4> eZobrist{initZobrist, initZobrist, initZobrist, initZobrist};
 
@@ -273,6 +336,8 @@ private:
   std::array<std::uint8_t, 256> squares = initSquares;
 
   std::array<std::int32_t, 1 << 16> history{}; // history heuristic indexed by move.toUInt16()
+
+  TranspositionTable TT;
 
   constexpr bool testMove(std::uint8_t piece, std::uint8_t to) const noexcept {
     return cInBoard.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
@@ -495,11 +560,37 @@ private:
     const std::uint8_t repStatus = moveHistory.repStatus();
     if (repStatus == 1 || repStatus == 7)
       return drawScore;
-    if (depth == 0)
-      return quiescence(0, alpha, beta, color);
 
+#define STORE_ENTRY(type, score)                                                                             \
+  TT.storeEntry(eZobrist[0], type, age, depth, static_cast<int>(moveHistory.moveCount()), score, localBest)
+
+    if (auto ttEntry = TT.getEntry(eZobrist[0]); ttEntry != nullptr) {
+      if (ttEntry->depth >= depth) {
+        std::int32_t ttScore = ttEntry->score;
+        ttScore = TT.adjustRetrieve(ttScore, static_cast<int>(moveHistory.moveCount()));
+        if (outBestMove && (ttEntry->move.from && ttEntry->move.to))
+          *outBestMove = ttEntry->move;
+        if (ttEntry->flag == TranspositionTable::exact)
+          return ttScore;
+        else if (ttEntry->flag == TranspositionTable::alpha && ttScore <= alpha)
+          return alpha;
+        else if (ttEntry->flag == TranspositionTable::beta && ttScore >= beta)
+          return beta;
+      }
+    }
+
+    Move localBest{0, 0};
+
+    if (depth == 0) {
+      auto score = quiescence(0, alpha, beta, color);
+      STORE_ENTRY(TranspositionTable::exact, score);
+      return score;
+    }
+
+    auto scoreTp = TranspositionTable::alpha;
     std::int32_t best = static_cast<std::int32_t>(moveHistory.moveCount()) - winScore;
-    alpha = std::max(alpha, best);
+    if (best >= alpha)
+      alpha = best, scoreTp = TranspositionTable::exact;
 
     std::vector<Move> moves;
     for (const auto &pr : generateAllMoves(color))
@@ -510,7 +601,6 @@ private:
                 [&](const Move &a, const Move &b) { return history[a.toUInt16()] > history[b.toUInt16()]; });
     }
 
-    Move localBest{0, 0};
     for (const auto &pr : moves) {
       if (!makeMoveUnlocked(pr.from, pr.to))
         continue;
@@ -520,9 +610,12 @@ private:
 
       if (val > best)
         best = val, localBest = pr;
-      alpha = std::max(alpha, val);
-      if (alpha >= beta)
+      if (best >= alpha)
+        alpha = best, scoreTp = TranspositionTable::exact;
+      if (alpha >= beta) {
+        scoreTp = TranspositionTable::beta;
         break; // beta cutoff
+      }
     }
 
     if (localBest.from || localBest.to)
@@ -530,7 +623,10 @@ private:
     if (outBestMove && (localBest.from && localBest.to))
       *outBestMove = localBest;
 
-    return alpha >= beta ? beta : alpha; // Return the best score found, or beta if a cutoff occurred
+    best = alpha >= beta ? beta : alpha; // Return the best score found, or beta if a cutoff occurred
+    STORE_ENTRY(scoreTp, best);
+    return best;
+#undef STORE_ENTRY
   }
 
 public:
@@ -673,11 +769,13 @@ public:
 
   bool makeMove(std::uint8_t from, std::uint8_t to) {
     throwing_lock_guard<std::mutex> lock(mtx);
+    ++age; // Increment age for transposition table entries
     return makeMoveUnlocked(from, to);
   }
 
   bool undoMove() {
     throwing_lock_guard<std::mutex> lock(mtx);
+    ++age; // Increment age for transposition table entries
     return undoMoveUnlocked();
   }
 
