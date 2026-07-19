@@ -67,9 +67,9 @@ static constexpr std::bitset<256> cInPalace = []() {
   return bits;
 }();
 
-static constexpr std::uint8_t flip_x(const std::uint8_t pos) { return 0xFE - (pos ^ 0xF0); }
-static constexpr std::uint8_t flip_y(const std::uint8_t pos) { return pos ^ 0xF0; }
-static constexpr std::uint8_t flip_a(const std::uint8_t pos) { return 0xFE - pos; }
+static constexpr std::uint8_t flip_x(const std::uint8_t pos) noexcept { return 0xFE - (pos ^ 0xF0); }
+static constexpr std::uint8_t flip_y(const std::uint8_t pos) noexcept { return pos ^ 0xF0; }
+static constexpr std::uint8_t flip_a(const std::uint8_t pos) noexcept { return 0xFE - pos; }
 
 static constexpr std::int8_t cUp = -16;
 static constexpr std::int8_t cDown = 16;
@@ -91,7 +91,7 @@ static constexpr std::uint8_t cCannon = 6;
 static constexpr std::uint8_t cPawn = 7;
 static constexpr std::uint8_t cPieceMask = 0x07;
 
-static constexpr bool sameColor(std::uint8_t a, std::uint8_t b) {
+static constexpr bool sameColor(std::uint8_t a, std::uint8_t b) noexcept {
   return (a & cColorMask) == (b & cColorMask);
 }
 
@@ -153,10 +153,10 @@ static const auto zobristTable = []() {
 struct Move {
   std::uint8_t from, to;
 
-  Move() : from(0), to(0) {}
-  Move(std::uint8_t _from, std::uint8_t _to) : from(_from), to(_to) {}
+  Move() noexcept : from(0), to(0) {}
+  Move(std::uint8_t _from, std::uint8_t _to) noexcept : from(_from), to(_to) {}
 
-  std::uint16_t toUInt16() const { return (static_cast<std::uint16_t>(from) << 8) | to; }
+  std::uint16_t toUInt16() const noexcept { return (static_cast<std::uint16_t>(from) << 8) | to; }
 };
 
 struct Step {
@@ -168,7 +168,7 @@ struct Step {
 
   Step(const std::uint8_t _from, const std::uint8_t _to, const std::uint8_t _captured,
        const std::uint8_t _moverColor, const bool _givesCheck = false,
-       const std::uint64_t _zobrist = static_cast<std::uint64_t>(0))
+       const std::uint64_t _zobrist = static_cast<std::uint64_t>(0)) noexcept
       : move{_from, _to}, captured(_captured), moverColor(_moverColor), givesCheck(_givesCheck),
         zobrist(_zobrist) {}
 };
@@ -177,18 +177,18 @@ struct MoveHistory {
   std::vector<Step> steps;
   std::unordered_map<std::uint64_t, std::vector<std::size_t>> zobristHistory;
 
-  MoveHistory() : steps(), zobristHistory() {
+  MoveHistory() noexcept : steps(), zobristHistory() {
     zobristHistory.reserve(1024);
     zobristHistory[initZobrist].emplace_back(0); // Initial position
   }
 
   void pushStep(std::uint8_t from, std::uint8_t to, std::uint8_t captured, std::uint8_t moverColor,
-                bool givesCheck, std::uint64_t zobrist) {
+                bool givesCheck, std::uint64_t zobrist) noexcept {
     steps.emplace_back(from, to, captured, moverColor, givesCheck, zobrist);
     zobristHistory[zobrist].emplace_back(steps.size());
   }
 
-  bool popStep() {
+  bool popStep() noexcept {
     if (steps.empty())
       return false;
 
@@ -200,7 +200,7 @@ struct MoveHistory {
     return true;
   }
 
-  std::uint8_t repStatus() const {
+  std::uint8_t repStatus() const noexcept {
     if (moveCount() <= 1)
       return 0;
 
@@ -224,12 +224,12 @@ struct MoveHistory {
     return (selfAllCheck ? 2 : 0) | (oppAllCheck ? 4 : 0) | 1;
   }
 
-  Step &lastStep() { return steps.back(); }
-  const Step &lastStep() const { return steps.back(); }
+  Step &lastStep() noexcept { return steps.back(); }
+  const Step &lastStep() const noexcept { return steps.back(); }
 
-  bool empty() const { return steps.empty(); }
+  bool empty() const noexcept { return steps.empty(); }
 
-  std::size_t moveCount() const { return steps.size(); }
+  std::size_t moveCount() const noexcept { return steps.size(); }
 };
 
 class cBoard {
@@ -248,15 +248,15 @@ private:
 
   std::array<std::int32_t, 1 << 16> history{}; // history heuristic indexed by move.toUInt16()
 
-  constexpr bool testMove(std::uint8_t piece, std::uint8_t to) const {
+  constexpr bool testMove(std::uint8_t piece, std::uint8_t to) const noexcept {
     return cInBoard.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
   }
 
-  constexpr bool testKingMove(std::uint8_t piece, std::uint8_t to) const {
+  constexpr bool testKingMove(std::uint8_t piece, std::uint8_t to) const noexcept {
     return cInPalace.test(to) && (squares[to] == 0 || !sameColor(squares[to], piece));
   }
 
-  std::int16_t getScore(std::uint8_t pos) const {
+  std::int16_t getScore(std::uint8_t pos) const noexcept {
     if (squares[pos] == 0)
       return 0;
     if ((squares[pos] & cColorMask) == cRed)
@@ -265,10 +265,10 @@ private:
       return -table.getScore(squares[pos] & cPieceMask, 254 - pos);
   }
 
-  void subScore(std::uint8_t from, std::uint8_t to) { eScore -= getScore(from) + getScore(to); }
-  void addScore(std::uint8_t from, std::uint8_t to) { eScore += getScore(from) + getScore(to); }
+  void subScore(std::uint8_t from, std::uint8_t to) noexcept { eScore -= getScore(from) + getScore(to); }
+  void addScore(std::uint8_t from, std::uint8_t to) noexcept { eScore += getScore(from) + getScore(to); }
 
-  std::uint64_t getZobrist(std::uint8_t pos, std::uint8_t type) const {
+  std::uint64_t getZobrist(std::uint8_t pos, std::uint8_t type) const noexcept {
     switch (type) {
     case 0:
       return zobristTable[squares[pos]][pos];
@@ -283,14 +283,14 @@ private:
     }
   }
 
-  void applyZobrist(std::uint8_t from, std::uint8_t to) {
+  void applyZobrist(std::uint8_t from, std::uint8_t to) noexcept {
     eZobrist[0] ^= getZobrist(from, 0) ^ getZobrist(to, 0);
     eZobrist[1] ^= getZobrist(from, 1) ^ getZobrist(to, 1);
     eZobrist[2] ^= getZobrist(from, 2) ^ getZobrist(to, 2);
     eZobrist[3] ^= getZobrist(from, 3) ^ getZobrist(to, 3);
   }
 
-  std::generator<std::uint8_t> generateKingMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generateKingMoves(const std::uint8_t pos) const noexcept {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : cKingDelta) {
       const std::uint8_t to = pos + move;
@@ -299,7 +299,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateAdvisorMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generateAdvisorMoves(const std::uint8_t pos) const noexcept {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : cAdvisorDelta) {
       const std::uint8_t to = pos + move;
@@ -308,7 +308,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateElephantMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generateElephantMoves(const std::uint8_t pos) const noexcept {
     const std::uint8_t piece = squares[pos];
     for (std::size_t i = 0; i < 4; ++i) {
       const std::uint8_t to = pos + cElephantDelta[i];
@@ -319,7 +319,7 @@ private:
   }
 
   std::generator<std::uint8_t> generateHorseMoves(const std::uint8_t pos, const std::int8_t moveDelta[4][2],
-                                                  const std::int8_t legDelta[4]) const {
+                                                  const std::int8_t legDelta[4]) const noexcept {
     const std::uint8_t piece = squares[pos];
     for (std::size_t i = 0; i < 4; ++i) {
       const std::uint8_t to1 = pos + moveDelta[i][0];
@@ -334,11 +334,11 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateHorseMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generateHorseMoves(const std::uint8_t pos) const noexcept {
     co_yield std::ranges::elements_of(generateHorseMoves(pos, cHorseDelta, cKingDelta));
   }
 
-  std::generator<std::uint8_t> generateRookMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generateRookMoves(const std::uint8_t pos) const noexcept {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : {cUp, cDown, cLeft, cRight}) {
       for (uint8_t to = pos + move; cInBoard.test(to); to += move) {
@@ -353,7 +353,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generateCannonMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generateCannonMoves(const std::uint8_t pos) const noexcept {
     const std::uint8_t piece = squares[pos];
     for (const auto &move : {cUp, cDown, cLeft, cRight}) {
       bool jumped = false;
@@ -374,7 +374,7 @@ private:
     }
   }
 
-  std::generator<std::uint8_t> generatePawnMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generatePawnMoves(const std::uint8_t pos) const noexcept {
     const std::uint8_t piece = squares[pos];
     const std::uint8_t forward = (piece & cColorMask) ? cUp : cDown;
     const std::uint8_t toForward = pos + forward;
@@ -391,7 +391,7 @@ private:
     }
   }
 
-  std::int32_t quiescence(int depth, int32_t alpha, int32_t beta, uint8_t color) {
+  std::int32_t quiescence(int depth, int32_t alpha, int32_t beta, uint8_t color) noexcept {
     const std::uint8_t repStatus = moveHistory.repStatus();
     if (repStatus == 1 || repStatus == 7)
       return drawScore;
@@ -437,7 +437,7 @@ private:
   }
 
   std::int32_t negamax(int depth, std::int32_t alpha, std::int32_t beta, std::uint8_t color,
-                       Move *outBestMove = nullptr) {
+                       Move *outBestMove = nullptr) noexcept {
     const std::uint8_t repStatus = moveHistory.repStatus();
     if (repStatus == 1 || repStatus == 7)
       return drawScore;
@@ -483,11 +483,11 @@ private:
 public:
   cBoard() {}
 
-  std::uint8_t getPieceAt(std::uint8_t pos) const { return squares[pos]; }
+  std::uint8_t getPieceAt(std::uint8_t pos) const noexcept { return squares[pos]; }
 
-  std::uint64_t getZobrist() const { return eZobrist[0]; }
+  std::uint64_t getZobrist() const noexcept { return eZobrist[0]; }
 
-  void reset_pst() {
+  void reset_pst() noexcept {
     table.loadDefault(), eScore = 0;
     for (std::uint8_t y = 3; y < 13; ++y)
       for (std::uint8_t x = 3; x < 12; ++x)
@@ -501,11 +501,11 @@ public:
         eScore += getScore(y * 16 + x);
   }
 
-  void setDrawScore(std::int16_t score) { drawScore = score; }
+  void setDrawScore(std::int16_t score) noexcept { drawScore = score; }
 
-  std::int32_t getScore() const { return eScore; }
+  std::int32_t getScore() const noexcept { return eScore; }
 
-  std::generator<std::uint8_t> generateMoves(const std::uint8_t pos) const {
+  std::generator<std::uint8_t> generateMoves(const std::uint8_t pos) const noexcept {
     const std::uint8_t piece = squares[pos];
 
     switch (piece & cPieceMask) {
@@ -533,7 +533,7 @@ public:
     }
   }
 
-  std::generator<Move> generateAllMoves(std::uint8_t color) const {
+  std::generator<Move> generateAllMoves(std::uint8_t color) const noexcept {
     for (std::size_t y = 3; y < 13; ++y) {
       for (std::size_t x = 3; x < 12; ++x) {
         std::uint8_t pos = static_cast<std::uint8_t>(y * 16 + x);
@@ -544,7 +544,7 @@ public:
     }
   }
 
-  std::generator<std::uint8_t> generateMovesWithCheck(std::uint8_t pos) {
+  std::generator<std::uint8_t> generateMovesWithCheck(std::uint8_t pos) noexcept {
     const std::uint8_t piece = squares[pos];
     for (const std::uint8_t move : generateMoves(pos)) {
       if (makeMove(pos, move)) {
@@ -554,7 +554,7 @@ public:
     }
   }
 
-  std::generator<Move> generateAllMovesWithCheck(std::uint8_t color) {
+  std::generator<Move> generateAllMovesWithCheck(std::uint8_t color) noexcept {
     for (std::size_t y = 3; y < 13; ++y) {
       for (std::size_t x = 3; x < 12; ++x) {
         std::uint8_t pos = static_cast<std::uint8_t>(y * 16 + x);
@@ -569,7 +569,7 @@ public:
     }
   }
 
-  std::uint8_t getKingPos(std::uint8_t color) const {
+  std::uint8_t getKingPos(std::uint8_t color) const noexcept {
     if (color == cBlack) {
       for (std::uint8_t y = 3; y < 6; ++y)
         for (std::uint8_t x = 6; x < 9; ++x)
@@ -584,7 +584,7 @@ public:
     return 0; // Should never reach here if the board is valid
   }
 
-  bool testCheck(std::uint8_t color) const {
+  bool testCheck(std::uint8_t color) const noexcept {
     std::uint8_t kingPos = getKingPos(color);
     if (kingPos == 0)
       return true; // King is captured, checkmate
@@ -605,9 +605,9 @@ public:
     return false;
   }
 
-  std::uint8_t repStatus() const { return moveHistory.repStatus(); }
+  std::uint8_t repStatus() const noexcept { return moveHistory.repStatus(); }
 
-  bool makeMove(std::uint8_t from, std::uint8_t to) {
+  bool makeMove(std::uint8_t from, std::uint8_t to) noexcept {
     const std::uint8_t moverColor = squares[from] & cColorMask;
 
     for (const std::uint8_t move : generateMoves(from))
@@ -624,7 +624,7 @@ public:
     return false;
   }
 
-  bool undoMove() {
+  bool undoMove() noexcept {
     if (moveHistory.empty())
       return false;
     Step step = moveHistory.lastStep();
@@ -635,7 +635,7 @@ public:
     return true;
   }
 
-  Move suggestMove(std::uint8_t color, int depth) {
+  Move suggestMove(std::uint8_t color, int depth) noexcept {
     Move bestMove{0, 0};
     if (depth <= 0)
       return bestMove;

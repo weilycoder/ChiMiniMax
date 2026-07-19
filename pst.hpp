@@ -6,7 +6,7 @@
 
 class pst_load_error : public std::runtime_error {
 public:
-  explicit pst_load_error(const std::string &message) : std::runtime_error(message) {}
+  explicit pst_load_error(const std::string &message) noexcept : std::runtime_error(message) {}
 };
 
 class Pst {
@@ -18,10 +18,10 @@ private:
   std::array<std::uint8_t, table_size> table{};
 
 public:
-  Pst() { loadDefault(); }
+  Pst() noexcept { loadDefault(); }
 
   // King = 1, Advisor = 2, Elephant = 3, Horse = 4, Rook = 5, Cannon = 6, Pawn = 7
-  std::int16_t getScore(std::uint8_t piece, std::uint8_t pos) const {
+  std::int16_t getScore(std::uint8_t piece, std::uint8_t pos) const noexcept {
     if (static_cast<std::size_t>(pos) >= SIZE)
       return 0;
 
@@ -43,7 +43,7 @@ public:
     }
   }
 
-  void loadDefault() {
+  void loadDefault() noexcept {
     static auto rc_to_pos = [](std::uint8_t row, std::uint8_t col) -> std::uint8_t {
       return ((row + 0x3) << 4) | (col + 0x3);
     };

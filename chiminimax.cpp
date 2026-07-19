@@ -27,13 +27,13 @@
 
 static std::unordered_map<std::uint64_t, cBoard> chiminimax_boards;
 
-static PyObject *chiminimax_random(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_random(PyObject *self, PyObject *args) noexcept {
   if (!PyArg_ParseTuple(args, ""))
     return NULL;
   return PyLong_FromUnsignedLongLong(rng());
 }
 
-static PyObject *chiminimax_new_board(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_new_board(PyObject *self, PyObject *args) noexcept {
   if (!PyArg_ParseTuple(args, ""))
     return NULL;
 
@@ -42,7 +42,7 @@ static PyObject *chiminimax_new_board(PyObject *self, PyObject *args) {
   return PyLong_FromUnsignedLongLong(board_id);
 }
 
-static PyObject *chiminimax_test_board(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_test_board(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   if (!PyArg_ParseTuple(args, "K", &board_id))
     return NULL;
@@ -55,7 +55,7 @@ static PyObject *chiminimax_test_board(PyObject *self, PyObject *args) {
   }
 }
 
-static PyObject *chiminimax_delete_board(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_delete_board(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   if (!PyArg_ParseTuple(args, "K", &board_id))
     return NULL;
@@ -87,7 +87,7 @@ static PyObject *chiminimax_delete_board(PyObject *self, PyObject *args) {
     return NULL;                                                                                             \
   }
 
-static bool check_color_id(const int color_id) {
+static bool check_color_id(const int color_id) noexcept {
   static constexpr auto errmsg = []() {
     std::array<char, 42> buffer{};
     static constexpr std::string_view msg = "Color must be 0x00 (Red) or 0x00 (Black).";
@@ -105,7 +105,7 @@ static bool check_color_id(const int color_id) {
   return true;
 }
 
-static PyObject *chiminimax_get_piece_at(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_get_piece_at(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   std::int32_t pos_x, pos_y;
   if (!PyArg_ParseTuple(args, "Kii", &board_id, &pos_x, &pos_y))
@@ -119,7 +119,7 @@ static PyObject *chiminimax_get_piece_at(PyObject *self, PyObject *args) {
   return PyLong_FromUnsignedLongLong(piece);
 }
 
-static PyObject *chiminimax_get_king_pos(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_get_king_pos(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   int color_id;
   if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
@@ -137,7 +137,7 @@ static PyObject *chiminimax_get_king_pos(PyObject *self, PyObject *args) {
   return Py_BuildValue("(ii)", INDEX_TO_X(king_pos), INDEX_TO_Y(king_pos));
 }
 
-static PyObject *chiminimax_get_score(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_get_score(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   if (!PyArg_ParseTuple(args, "K", &board_id))
     return NULL;
@@ -148,7 +148,7 @@ static PyObject *chiminimax_get_score(PyObject *self, PyObject *args) {
   return PyLong_FromLong(score);
 }
 
-static PyObject *chiminimax_reset_pst(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_reset_pst(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   if (!PyArg_ParseTuple(args, "K", &board_id))
     return NULL;
@@ -159,7 +159,7 @@ static PyObject *chiminimax_reset_pst(PyObject *self, PyObject *args) {
   Py_RETURN_NONE;
 }
 
-static PyObject *chiminimax_load_pst(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_load_pst(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   const char *filename;
   if (!PyArg_ParseTuple(args, "Ks", &board_id, &filename))
@@ -180,7 +180,7 @@ static PyObject *chiminimax_load_pst(PyObject *self, PyObject *args) {
   Py_RETURN_NONE;
 }
 
-static PyObject *chiminimax_set_draw_score(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_set_draw_score(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   std::int16_t score;
   if (!PyArg_ParseTuple(args, "Kh", &board_id, &score))
@@ -192,7 +192,7 @@ static PyObject *chiminimax_set_draw_score(PyObject *self, PyObject *args) {
   Py_RETURN_NONE;
 }
 
-static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   std::int32_t pos_x, pos_y;
   if (!PyArg_ParseTuple(args, "Kii", &board_id, &pos_x, &pos_y))
@@ -221,7 +221,7 @@ static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) {
   return moves_list;
 }
 
-static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   int color_id;
   if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
@@ -255,7 +255,7 @@ static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) {
   return all_moves_list;
 }
 
-static PyObject *chiminimax_test_check(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_test_check(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   int color_id;
   if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
@@ -273,7 +273,7 @@ static PyObject *chiminimax_test_check(PyObject *self, PyObject *args) {
   }
 }
 
-static PyObject *chiminimax_rep_status(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_rep_status(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   int color_id;
   if (!PyArg_ParseTuple(args, "Ki", &board_id, &color_id))
@@ -286,7 +286,7 @@ static PyObject *chiminimax_rep_status(PyObject *self, PyObject *args) {
   return PyLong_FromUnsignedLongLong(it->second.repStatus());
 }
 
-static PyObject *chiminimax_make_move(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_make_move(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   std::int32_t from_x, from_y, to_x, to_y;
   if (!PyArg_ParseTuple(args, "Kiiii", &board_id, &from_x, &from_y, &to_x, &to_y))
@@ -306,7 +306,7 @@ static PyObject *chiminimax_make_move(PyObject *self, PyObject *args) {
   Py_RETURN_NONE;
 }
 
-static PyObject *chiminimax_undo_move(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_undo_move(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   if (!PyArg_ParseTuple(args, "K", &board_id))
     return NULL;
@@ -320,7 +320,7 @@ static PyObject *chiminimax_undo_move(PyObject *self, PyObject *args) {
   Py_RETURN_NONE;
 }
 
-static PyObject *chiminimax_get_zobrist(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_get_zobrist(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   if (!PyArg_ParseTuple(args, "K", &board_id))
     return NULL;
@@ -331,7 +331,7 @@ static PyObject *chiminimax_get_zobrist(PyObject *self, PyObject *args) {
   return PyLong_FromUnsignedLongLong(zobrist);
 }
 
-static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) {
+static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) noexcept {
   std::uint64_t board_id;
   int color_id, depth;
   if (!PyArg_ParseTuple(args, "Kii", &board_id, &color_id, &depth))
@@ -420,7 +420,7 @@ static PyModuleDef chiminimax_module = {
     return NULL;                                                                                             \
   }
 
-PyMODINIT_FUNC PyInit_chiminimax(void) {
+PyMODINIT_FUNC PyInit_chiminimax(void) noexcept {
   PyObject *module = PyModule_Create(&chiminimax_module);
   if (!module)
     return NULL;
@@ -441,7 +441,7 @@ PyMODINIT_FUNC PyInit_chiminimax(void) {
   return module;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) noexcept {
   PyStatus status;
   PyConfig config;
   PyObject *pmodule;
