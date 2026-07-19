@@ -238,11 +238,7 @@ public:
   static constexpr std::int32_t winScore = 1 << 30;
   static constexpr std::int32_t winLimit = winScore >> 1;
 
-  class lock_failed : public std::runtime_error {
-  public:
-    lock_failed() : std::runtime_error("Failed to acquire lock for board") {}
-  };
-
+private:
   template <typename mutex_type> class throwing_lock_guard {
   public:
     explicit throwing_lock_guard(mutex_type &__m) : _M_device(__m) {
@@ -250,13 +246,19 @@ public:
         throw lock_failed();
     }
 
-    ~throwing_lock_guard() { _M_device.unlock(); }
+    ~throwing_lock_guard() noexcept { _M_device.unlock(); }
 
     throwing_lock_guard(const throwing_lock_guard &) = delete;
     throwing_lock_guard &operator=(const throwing_lock_guard &) = delete;
 
   private:
     mutex_type &_M_device;
+  };
+
+public:
+  class lock_failed : public std::runtime_error {
+  public:
+    lock_failed() noexcept : std::runtime_error("Failed to acquire lock for board") {}
   };
 
   std::mutex mtx;
