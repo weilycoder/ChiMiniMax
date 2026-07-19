@@ -35,7 +35,7 @@
 #include <utility>
 #include <vector>
 
-#define MAX_REC_DEPTH 16
+#define Q_MAX_REC_DEPTH 16
 
 static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
               "Unsupported endianness");
@@ -403,7 +403,7 @@ private:
       alpha = std::max(alpha, standPat);
       if (alpha >= beta)
         return alpha;
-    } else if (depth > MAX_REC_DEPTH) {
+    } else if (depth > Q_MAX_REC_DEPTH) {
       return static_cast<std::int32_t>(moveHistory.moveCount()) - winScore;
     }
 
@@ -411,7 +411,7 @@ private:
     for (const auto &pr : generateAllMoves(color)) {
       if (!makeMove(pr.from, pr.to))
         continue;
-      const int32_t givesCheck = (depth <= MAX_REC_DEPTH && testCheck(color ^ cColorMask)) ? winLimit : 0;
+      const int32_t givesCheck = (depth <= Q_MAX_REC_DEPTH && testCheck(color ^ cColorMask)) ? winLimit : 0;
       const std::int32_t captured = moveHistory.lastStep().captured;
       const std::int32_t rank = table.getScore(captured & cPieceMask, pr.to) + givesCheck + inCheck;
       if (rank != 0)
