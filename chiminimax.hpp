@@ -499,6 +499,7 @@ private:
       return quiescence(0, alpha, beta, color);
 
     std::int32_t best = static_cast<std::int32_t>(moveHistory.moveCount()) - winScore;
+    alpha = std::max(alpha, best);
 
     std::vector<Move> moves;
     for (const auto &pr : generateAllMoves(color))
@@ -520,10 +521,8 @@ private:
       if (val > best)
         best = val, localBest = pr;
       alpha = std::max(alpha, val);
-      if (alpha >= beta) {
-        history[pr.toUInt16()] += depth * depth;
+      if (alpha >= beta)
         break; // beta cutoff
-      }
     }
 
     if (localBest.from || localBest.to)
@@ -531,7 +530,7 @@ private:
     if (outBestMove && (localBest.from && localBest.to))
       *outBestMove = localBest;
 
-    return best;
+    return alpha >= beta ? beta : alpha; // Return the best score found, or beta if a cutoff occurred
   }
 
 public:
