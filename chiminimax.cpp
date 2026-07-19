@@ -24,6 +24,7 @@
 #include <array>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 static std::unordered_map<std::uint64_t, cBoard> chiminimax_boards;
 
@@ -38,7 +39,7 @@ static PyObject *chiminimax_new_board(PyObject *self, PyObject *args) noexcept {
     return NULL;
 
   std::uint64_t board_id = rng();
-  chiminimax_boards[board_id] = cBoard();
+  chiminimax_boards[board_id];
   return PyLong_FromUnsignedLongLong(board_id);
 }
 
@@ -62,8 +63,13 @@ static PyObject *chiminimax_delete_board(PyObject *self, PyObject *args) noexcep
 
   auto it = chiminimax_boards.find(board_id);
   if (it != chiminimax_boards.end()) {
-    chiminimax_boards.erase(it);
-    Py_RETURN_NONE;
+    if (it->second.mtx.try_lock()) {
+      chiminimax_boards.erase(it);
+      Py_RETURN_NONE;
+    } else {
+      PyErr_SetString(PyExc_RuntimeError, "Failed to acquire lock for board deletion.");
+      return NULL;
+    }
   } else {
     PyErr_SetString(PyExc_ValueError, "Board ID not found.");
     return NULL;
@@ -155,7 +161,13 @@ static PyObject *chiminimax_reset_pst(PyObject *self, PyObject *args) noexcept {
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
-  it->second.reset_pst();
+  try {
+    it->second.reset_pst();
+  } catch (const cBoard::lock_failed &e) {
+    PyErr_SetString(PyExc_RuntimeError, e.what());
+    return NULL;
+  }
+
   Py_RETURN_NONE;
 }
 
@@ -172,9 +184,6 @@ static PyObject *chiminimax_load_pst(PyObject *self, PyObject *args) noexcept {
   } catch (const pst_load_error &e) {
     PyErr_SetString(PyExc_OSError, e.what());
     return NULL;
-  } catch (...) {
-    PyErr_SetString(PyExc_SystemError, "An unexpected error occurred while loading the PST.");
-    return NULL;
   }
 
   Py_RETURN_NONE;
@@ -188,7 +197,13 @@ static PyObject *chiminimax_set_draw_score(PyObject *self, PyObject *args) noexc
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
-  it->second.setDrawScore(score);
+  try {
+    it->second.setDrawScore(score);
+  } catch (const cBoard::lock_failed &e) {
+    PyErr_SetString(PyExc_RuntimeError, e.what());
+    return NULL;
+  }
+
   Py_RETURN_NONE;
 }
 
@@ -200,12 +215,20 @@ static PyObject *chiminimax_generate_moves(PyObject *self, PyObject *args) noexc
   ASSERT_POS(pos_x, pos_y);
   ASSERT_BOARD_EXISTS(board_id, it);
 
+  std::vector<std::uint8_t> validMoves;
+  try {
+    validMoves = it->second.generateMovesWithCheck(POS_TO_INDEX(pos_x, pos_y));
+  } catch (const cBoard::lock_failed &e) {
+    PyErr_SetString(PyExc_RuntimeError, e.what());
+    return NULL;
+  }
+
   PyObject *moves_list = PyList_New(0);
   if (!moves_list)
     return NULL;
 
   std::uint8_t pos = POS_TO_INDEX(pos_x, pos_y);
-  for (const std::uint8_t move : it->second.generateMovesWithCheck(pos)) {
+  for (const std::uint8_t move : validMoves) {
     PyObject *move_tuple = Py_BuildValue("(ii)", INDEX_TO_X(move), INDEX_TO_Y(move));
     if (!move_tuple) {
       Py_DECREF(moves_list);
@@ -231,11 +254,19 @@ static PyObject *chiminimax_generate_all_moves(PyObject *self, PyObject *args) n
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
+  std::vector<Move> validMoves;
+  try {
+    validMoves = it->second.generateAllMovesWithCheck(color_id);
+  } catch (const cBoard::lock_failed &e) {
+    PyErr_SetString(PyExc_RuntimeError, e.what());
+    return NULL;
+  }
+
   PyObject *all_moves_list = PyList_New(0);
   if (!all_moves_list)
     return NULL;
 
-  for (const auto &[from, to] : it->second.generateAllMovesWithCheck(color_id)) {
+  for (const auto &[from, to] : validMoves) {
     std::uint8_t from_x = INDEX_TO_X(from);
     std::uint8_t from_y = INDEX_TO_Y(from);
     std::uint8_t to_x = INDEX_TO_X(to);
@@ -299,8 +330,13 @@ static PyObject *chiminimax_make_move(PyObject *self, PyObject *args) noexcept {
   std::uint8_t from = POS_TO_INDEX(from_x, from_y);
   std::uint8_t to = POS_TO_INDEX(to_x, to_y);
 
-  if (!it->second.makeMove(from, to)) {
-    PyErr_SetString(PyExc_ValueError, "Invalid move.");
+  try {
+    if (!it->second.makeMove(from, to)) {
+      PyErr_SetString(PyExc_ValueError, "Invalid move.");
+      return NULL;
+    }
+  } catch (const cBoard::lock_failed &e) {
+    PyErr_SetString(PyExc_RuntimeError, e.what());
     return NULL;
   }
   Py_RETURN_NONE;
@@ -313,8 +349,13 @@ static PyObject *chiminimax_undo_move(PyObject *self, PyObject *args) noexcept {
 
   ASSERT_BOARD_EXISTS(board_id, it);
 
-  if (!it->second.undoMove()) {
-    PyErr_SetString(PyExc_ValueError, "No moves to undo.");
+  try {
+    if (!it->second.undoMove()) {
+      PyErr_SetString(PyExc_ValueError, "No moves to undo.");
+      return NULL;
+    }
+  } catch (const cBoard::lock_failed &e) {
+    PyErr_SetString(PyExc_RuntimeError, e.what());
     return NULL;
   }
   Py_RETURN_NONE;
@@ -342,9 +383,15 @@ static PyObject *chiminimax_suggest_move(PyObject *self, PyObject *args) noexcep
   ASSERT_BOARD_EXISTS(board_id, it);
 
   Move move;
-  {
-    Py_BEGIN_ALLOW_THREADS move = it->second.suggestMove(color_id, depth);
-    Py_END_ALLOW_THREADS
+  PyThreadState *_save;
+  _save = PyEval_SaveThread();
+  try {
+    move = it->second.suggestMove(color_id, depth);
+    PyEval_RestoreThread(_save);
+  } catch (const cBoard::lock_failed &e) {
+    PyEval_RestoreThread(_save);
+    PyErr_SetString(PyExc_RuntimeError, e.what());
+    return NULL;
   }
 
   if (move.from == 0 && move.to == 0)

@@ -29,6 +29,7 @@
 #include <cstring>
 #include <generator>
 #include <limits>
+#include <mutex>
 #include <random>
 #include <stack>
 #include <unordered_map>
@@ -237,6 +238,29 @@ public:
   static constexpr std::int32_t winScore = 1 << 30;
   static constexpr std::int32_t winLimit = winScore >> 1;
 
+  class lock_failed : public std::runtime_error {
+  public:
+    lock_failed() : std::runtime_error("Failed to acquire lock for board") {}
+  };
+
+  template <typename mutex_type> class throwing_lock_guard {
+  public:
+    explicit throwing_lock_guard(mutex_type &__m) : _M_device(__m) {
+      if (!__m.try_lock())
+        throw lock_failed();
+    }
+
+    ~throwing_lock_guard() { _M_device.unlock(); }
+
+    throwing_lock_guard(const throwing_lock_guard &) = delete;
+    throwing_lock_guard &operator=(const throwing_lock_guard &) = delete;
+
+  private:
+    mutex_type &_M_device;
+  };
+
+  std::mutex mtx;
+
 private:
   std::int32_t eScore = 0, drawScore = 0;
   std::array<std::uint64_t, 4> eZobrist{initZobrist, initZobrist, initZobrist, initZobrist};
@@ -391,6 +415,34 @@ private:
     }
   }
 
+  bool undoMoveUnlocked() noexcept {
+    if (moveHistory.empty())
+      return false;
+    Step step = moveHistory.lastStep();
+    moveHistory.popStep();
+    applyZobrist(step.move.from, step.move.to), subScore(step.move.from, step.move.to);
+    squares[step.move.from] = squares[step.move.to], squares[step.move.to] = step.captured;
+    applyZobrist(step.move.from, step.move.to), addScore(step.move.from, step.move.to);
+    return true;
+  }
+
+  bool makeMoveUnlocked(std::uint8_t from, std::uint8_t to) noexcept {
+    const std::uint8_t moverColor = squares[from] & cColorMask;
+
+    for (const std::uint8_t move : generateMoves(from))
+      if (move == to) {
+        std::uint8_t captured = squares[to];
+        applyZobrist(from, to), subScore(from, to);
+        squares[to] = squares[from], squares[from] = cEmpty;
+        applyZobrist(from, to), addScore(from, to);
+        moveHistory.pushStep(from, to, captured, moverColor, testCheck(moverColor ^ cColorMask), eZobrist[0]);
+        if (testCheck(moverColor) || repStatus() == 3)
+          return undoMoveUnlocked(), false;
+        return true;
+      }
+    return false;
+  }
+
   std::int32_t quiescence(int depth, int32_t alpha, int32_t beta, uint8_t color) noexcept {
     const std::uint8_t repStatus = moveHistory.repStatus();
     if (repStatus == 1 || repStatus == 7)
@@ -409,24 +461,24 @@ private:
 
     std::vector<std::pair<Move, std::int32_t>> moves;
     for (const auto &pr : generateAllMoves(color)) {
-      if (!makeMove(pr.from, pr.to))
+      if (!makeMoveUnlocked(pr.from, pr.to))
         continue;
       const int32_t givesCheck = (depth <= Q_MAX_REC_DEPTH && testCheck(color ^ cColorMask)) ? winLimit : 0;
       const std::int32_t captured = moveHistory.lastStep().captured;
       const std::int32_t rank = table.getScore(captured & cPieceMask, pr.to) + givesCheck + inCheck;
       if (rank != 0)
         moves.emplace_back(pr, rank);
-      undoMove();
+      undoMoveUnlocked();
     }
 
     std::sort(moves.begin(), moves.end(), [&](const auto &a, const auto &b) { return a.second > b.second; });
 
     for (const auto &pr : moves) {
-      if (!makeMove(pr.first.from, pr.first.to))
+      if (!makeMoveUnlocked(pr.first.from, pr.first.to))
         continue;
 
       const std::int32_t score = -quiescence(depth + 1, -beta, -alpha, color ^ cColorMask);
-      undoMove();
+      undoMoveUnlocked();
 
       alpha = std::max(alpha, score);
       if (alpha >= beta)
@@ -457,11 +509,11 @@ private:
 
     Move localBest{0, 0};
     for (const auto &pr : moves) {
-      if (!makeMove(pr.from, pr.to))
+      if (!makeMoveUnlocked(pr.from, pr.to))
         continue;
 
       const std::int32_t val = -negamax(depth - 1, -beta, -alpha, color ^ cColorMask);
-      undoMove();
+      undoMoveUnlocked();
 
       if (val > best)
         best = val, localBest = pr;
@@ -481,13 +533,14 @@ private:
   }
 
 public:
-  cBoard() {}
+  cBoard() = default;
 
   std::uint8_t getPieceAt(std::uint8_t pos) const noexcept { return squares[pos]; }
 
   std::uint64_t getZobrist() const noexcept { return eZobrist[0]; }
 
-  void reset_pst() noexcept {
+  void reset_pst() {
+    throwing_lock_guard<std::mutex> lock(mtx);
     table.loadDefault(), eScore = 0;
     for (std::uint8_t y = 3; y < 13; ++y)
       for (std::uint8_t x = 3; x < 12; ++x)
@@ -495,13 +548,17 @@ public:
   }
 
   void load_pst(const char *filename) {
+    throwing_lock_guard<std::mutex> lock(mtx);
     table.load(filename), eScore = 0;
     for (std::uint8_t y = 3; y < 13; ++y)
       for (std::uint8_t x = 3; x < 12; ++x)
         eScore += getScore(y * 16 + x);
   }
 
-  void setDrawScore(std::int16_t score) noexcept { drawScore = score; }
+  void setDrawScore(std::int16_t score) {
+    throwing_lock_guard<std::mutex> lock(mtx);
+    drawScore = score;
+  }
 
   std::int32_t getScore() const noexcept { return eScore; }
 
@@ -544,29 +601,35 @@ public:
     }
   }
 
-  std::generator<std::uint8_t> generateMovesWithCheck(std::uint8_t pos) noexcept {
+  std::vector<std::uint8_t> generateMovesWithCheck(std::uint8_t pos) {
+    throwing_lock_guard<std::mutex> lock(mtx);
     const std::uint8_t piece = squares[pos];
+    std::vector<std::uint8_t> validMoves;
     for (const std::uint8_t move : generateMoves(pos)) {
-      if (makeMove(pos, move)) {
-        undoMove();
-        co_yield move;
+      if (makeMoveUnlocked(pos, move)) {
+        undoMoveUnlocked();
+        validMoves.emplace_back(move);
       }
     }
+    return validMoves.shrink_to_fit(), validMoves;
   }
 
-  std::generator<Move> generateAllMovesWithCheck(std::uint8_t color) noexcept {
+  std::vector<Move> generateAllMovesWithCheck(std::uint8_t color) {
+    throwing_lock_guard<std::mutex> lock(mtx);
+    std::vector<Move> validMoves;
     for (std::size_t y = 3; y < 13; ++y) {
       for (std::size_t x = 3; x < 12; ++x) {
         std::uint8_t pos = static_cast<std::uint8_t>(y * 16 + x);
         if (squares[pos] != cEmpty && (squares[pos] & cColorMask) == color)
           for (const std::uint8_t move : generateMoves(pos)) {
-            if (makeMove(pos, move)) {
-              undoMove();
-              co_yield Move{pos, move};
+            if (makeMoveUnlocked(pos, move)) {
+              undoMoveUnlocked();
+              validMoves.emplace_back(pos, move);
             }
           }
       }
     }
+    return validMoves.shrink_to_fit(), validMoves;
   }
 
   std::uint8_t getKingPos(std::uint8_t color) const noexcept {
@@ -607,35 +670,18 @@ public:
 
   std::uint8_t repStatus() const noexcept { return moveHistory.repStatus(); }
 
-  bool makeMove(std::uint8_t from, std::uint8_t to) noexcept {
-    const std::uint8_t moverColor = squares[from] & cColorMask;
-
-    for (const std::uint8_t move : generateMoves(from))
-      if (move == to) {
-        std::uint8_t captured = squares[to];
-        applyZobrist(from, to), subScore(from, to);
-        squares[to] = squares[from], squares[from] = cEmpty;
-        applyZobrist(from, to), addScore(from, to);
-        moveHistory.pushStep(from, to, captured, moverColor, testCheck(moverColor ^ cColorMask), eZobrist[0]);
-        if (testCheck(moverColor) || repStatus() == 3)
-          return undoMove(), false;
-        return true;
-      }
-    return false;
+  bool makeMove(std::uint8_t from, std::uint8_t to) {
+    throwing_lock_guard<std::mutex> lock(mtx);
+    return makeMoveUnlocked(from, to);
   }
 
-  bool undoMove() noexcept {
-    if (moveHistory.empty())
-      return false;
-    Step step = moveHistory.lastStep();
-    moveHistory.popStep();
-    applyZobrist(step.move.from, step.move.to), subScore(step.move.from, step.move.to);
-    squares[step.move.from] = squares[step.move.to], squares[step.move.to] = step.captured;
-    applyZobrist(step.move.from, step.move.to), addScore(step.move.from, step.move.to);
-    return true;
+  bool undoMove() {
+    throwing_lock_guard<std::mutex> lock(mtx);
+    return undoMoveUnlocked();
   }
 
-  Move suggestMove(std::uint8_t color, int depth) noexcept {
+  Move suggestMove(std::uint8_t color, int depth) {
+    throwing_lock_guard<std::mutex> lock(mtx);
     Move bestMove{0, 0};
     if (depth <= 0)
       return bestMove;
